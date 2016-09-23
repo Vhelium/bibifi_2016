@@ -4,18 +4,22 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"io"
+	"bufio"
 	"strconv"
 	"log"
 	"strings"
+	"regexp"
 )
 
+var legitStringRegex *regexp.Regexp;
+
 func main() {
+	initialize()
+
 	port := "6666"
 	password := "admin"
 	if len(os.Args) >= 2 {
-		p, err := strconv.Atoi(os.Args[1])
-		if err == nil && p >= 1024 && p <= 65535 {
+		if isArgPortLegit(os.Args[1]) {
 			port = os.Args[1]
 		} else {
 			log.Fatal("Invalid port argument")
@@ -23,7 +27,12 @@ func main() {
 		}
 	}
 	if len(os.Args) >= 3 {
-		password = os.Args[2]
+		if isArgPwLegit(os.Args[2]) {
+			password = os.Args[2]
+		} else {
+			log.Fatal("Invalid pw argument")
+			os.Exit(255)
+		}
 	}
 
 	log.Printf("Starting server on port %s w/ password %s", port, password)
@@ -31,41 +40,59 @@ func main() {
 	ln, err := net.Listen("tcp", ":"+port)
 	vcheck(err)
 
-	for {
+	for { // poll for requests
 		conn, err := ln.Accept()
 		vcheck(err)
 		defer conn.Close()
 
-		bufCmd := make ([]byte, 0, 4096)
-		bufRcv := make ([]byte, 2048)
-		for {
-			len, err := conn.Read(bufRcv)
+		r := bufio.NewReader(conn)
+		fmt.Printf(">>>>>>>>>>>> Program Start >>>>>>>>>>\n")
+		for { // poll for input
+			m, err := r.ReadString('\n')
+
+			finished := parseLine(m)
+
 			if err != nil {
-				if err != io.EOF {
-					fmt.Println("Read error:", err)
-				}
+				// e.g. EOF
 				break
 			}
-			bufCmd = append(bufCmd, bufRcv[:len]...)
-			if isProgramComplete(&bufCmd) {
+
+			if finished {
+				fmt.Printf(">>>>>>>>>>>> Program End >>>>>>>>>>>>\n")
 				break
 			}
 		}
-		fmt.Printf("msg:\n%s", string(bufCmd))
 	}
 }
 
-func isProgramComplete(buf *[]byte) (bool) {
-	lines := strings.Split(string(*buf), "\n")
-	for _,l := range lines {
-		if isLineTerminating(l) {
-			return true
-		}
+func initialize() {
+	legitStringRegex = regexp.MustCompile(`[A-Za-z0-9_ ,;\.?!-]*`)
+}
+
+func isArgPortLegit(port string) bool {
+	// check for '0' prefix and len <= 4096
+	if port[0] == '0' || len(port) > 4096 {
+		return false
+	}
+	// check if legit decimal
+	p, err := strconv.Atoi(os.Args[1])
+	if err == nil && p >= 1024 && p <= 65535 {
+		return true
 	}
 	return false
 }
 
-func isLineTerminating(l string) (bool) {
+func isArgPwLegit(pw string) bool {
+	return len(pw) <= 4096 && isStringLegit(pw)
+}
+
+func isStringLegit(s string) bool {
+	//return len(s) <= 65535 && ...
+	return s == legitStringRegex.FindString(s);
+}
+
+func parseLine(l string) bool {
+	fmt.Printf("%s", l)
 	return strings.HasPrefix(strings.TrimLeft(l, " \t"), "return") ||
 			strings.HasPrefix(strings.TrimLeft(l, " \t"), "exit")
 }
