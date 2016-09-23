@@ -37,7 +37,7 @@ func main() {
 		defer conn.Close()
 
 		bufCmd := make ([]byte, 0, 4096)
-		bufRcv := make ([]byte, 1024)
+		bufRcv := make ([]byte, 2048)
 		for {
 			len, err := conn.Read(bufRcv)
 			if err != nil {
@@ -47,15 +47,27 @@ func main() {
 				break
 			}
 			bufCmd = append(bufCmd, bufRcv[:len]...)
-			// TODO: parse the buffer line by line
+			if isProgramComplete(&bufCmd) {
+				break
+			}
 		}
 		fmt.Printf("msg:\n%s", string(bufCmd))
 	}
 }
 
-func parseLine(l string) (eof bool) {
-	fmt.Printf("r:\t%s", l)
-	return strings.HasPrefix(strings.TrimLeft(l, " \t"), "return")
+func isProgramComplete(buf *[]byte) (bool) {
+	lines := strings.Split(string(*buf), "\n")
+	for _,l := range lines {
+		if isLineTerminating(l) {
+			return true
+		}
+	}
+	return false
+}
+
+func isLineTerminating(l string) (bool) {
+	return strings.HasPrefix(strings.TrimLeft(l, " \t"), "return") ||
+			strings.HasPrefix(strings.TrimLeft(l, " \t"), "exit")
 }
 
 func vcheck(err error) {
