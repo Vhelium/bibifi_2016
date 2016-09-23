@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"io"
 	"strconv"
 	"log"
-	"bufio"
 	"strings"
 )
 
@@ -30,27 +30,27 @@ func main() {
 
 	ln, err := net.Listen("tcp", ":"+port)
 	vcheck(err)
-	conn, err := ln.Accept()
-	vcheck(err)
-	defer conn.Close()
 
-	r := bufio.NewReader(conn)
 	for {
-		m, err := r.ReadString('\n')
+		conn, err := ln.Accept()
+		vcheck(err)
+		defer conn.Close()
 
-		finished := parseLine(m)
-
-		if err != nil {
-			// e.g. EOF
-			break
+		bufCmd := make ([]byte, 0, 4096)
+		bufRcv := make ([]byte, 1024)
+		for {
+			len, err := conn.Read(bufRcv)
+			if err != nil {
+				if err != io.EOF {
+					fmt.Println("Read error:", err)
+				}
+				break
+			}
+			bufCmd = append(bufCmd, bufRcv[:len]...)
+			// TODO: parse the buffer line by line
 		}
-
-		if finished {
-			break
-		}
-
+		fmt.Printf("msg:\n%s", string(bufCmd))
 	}
-	fmt.Printf(">>>>>>>>>> END OF PROGRAM >>>>>>>>")
 }
 
 func parseLine(l string) (eof bool) {
