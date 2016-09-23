@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"time"
 	"bufio"
 	"strconv"
 	"log"
@@ -42,24 +43,46 @@ func main() {
 
 	for { // poll for requests
 		conn, err := ln.Accept()
-		vcheck(err)
-		defer conn.Close()
+		if err != nil {
+			log.Printf("Client aborted: \n", err)
+		}
+		// set timeouts
+		conn.SetReadDeadline(time.Now().Add(time.Second * 5))
+		conn.SetWriteDeadline(time.Now().Add(time.Second * 5))
 
 		r := bufio.NewReader(conn)
+		ch := make(chan string, 1) // buffered line
+		timeout := make(chan bool, 1) // timeout
+
 		fmt.Printf(">>>>>>>>>>>> Program Start >>>>>>>>>>\n")
+		P:
 		for { // poll for input
-			m, err := r.ReadString('\n')
+			go func() {
+				m, err := r.ReadString('\n')
+				if err == nil {
+					ch <- m
+				}
+			}()
+			go func() {
+				time.Sleep(5 * time.Second)
+				timeout <- true
+			}()
 
-			finished := parseLine(m)
+			select {
+			case m:= <-ch:
+				// we got some data
+				status := parseLine(m)
 
-			if err != nil {
-				// e.g. EOF
-				break
-			}
-
-			if finished {
-				fmt.Printf(">>>>>>>>>>>> Program End >>>>>>>>>>>>\n")
-				break
+				if status != 0 {
+					fmt.Printf(">>>>>>>>>>>> Program End >>>>>>>>>>>>\n")
+					conn.Write([]byte("okthxbye\n"))
+					conn.Close()
+					break
+				}
+			case <-timeout:
+				// read timed out
+				log.Printf("Client timed out.")
+				break P
 			}
 		}
 	}
@@ -91,10 +114,14 @@ func isStringLegit(s string) bool {
 	return s == legitStringRegex.FindString(s);
 }
 
-func parseLine(l string) bool {
+func parseLine(l string) int {
 	fmt.Printf("%s", l)
-	return strings.HasPrefix(strings.TrimLeft(l, " \t"), "return") ||
-			strings.HasPrefix(strings.TrimLeft(l, " \t"), "exit")
+	if strings.HasPrefix(strings.TrimLeft(l, " \t"), "return") ||
+			strings.HasPrefix(strings.TrimLeft(l, " \t"), "exit") {
+		return 1
+	} else {
+		return 0
+	}
 }
 
 func vcheck(err error) {
