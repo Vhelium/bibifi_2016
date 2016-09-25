@@ -47,8 +47,8 @@ func main() {
 			log.Printf("Client aborted: \n", err)
 		}
 		// set timeouts
-		conn.SetReadDeadline(time.Now().Add(time.Second * 5))
-		conn.SetWriteDeadline(time.Now().Add(time.Second * 5))
+		conn.SetReadDeadline(time.Now().Add(time.Second * 10))
+		conn.SetWriteDeadline(time.Now().Add(time.Second * 10))
 
 		r := bufio.NewReader(conn)
 		ch := make(chan string, 1) // buffered line
@@ -116,8 +116,7 @@ func isStringLegit(s string) bool {
 
 func parseLine(l string) int {
 	fmt.Printf("%s", l)
-	if strings.HasPrefix(strings.TrimLeft(l, " \t"), "return") ||
-			strings.HasPrefix(strings.TrimLeft(l, " \t"), "exit") {
+	if strings.HasPrefix(strings.TrimLeft(l, " \t"), "***") {
 		return 1
 	} else {
 		return 0

@@ -9,3 +9,7 @@ VM: https://umd.app.box.com/s/8lj3908flgw9q56de90o1ux4r7nlzbbw
 server build: *make*  
 server run: *make run*  
 client run: *cat test/test001.txt | nc localhost 6666*  
+
+## Possible Attacks
+* Non-termating program (timeout)
+* Invalid string (that doesn't match the specs)
