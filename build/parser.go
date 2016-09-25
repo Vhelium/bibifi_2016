@@ -42,14 +42,14 @@ func (p *Parser) parse() int {
 			if words.areNext("as", "principal") {
 				user := words.next()
 				pw := words.next()
-				if !words.parseError {
-					p.prg= Program{
-						user: user,
-						pw: pw,
-						cmds: make([]Cmd, 0),
-					}
+
+				p.prg= Program{
+					user: user,
+					pw: pw,
+					cmds: make([]Cmd, 0),
 				}
-			} else {
+			}
+			if words.parseError {
 				return 2
 			}
 			continue
