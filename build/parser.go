@@ -17,6 +17,7 @@ type Program struct {
 }
 
 type Cmd interface {
+	execute(*Environment) int
 }
 
 type CmdReturn struct {
@@ -29,24 +30,29 @@ func newParser(p string) (*Parser) {
 	return &Parser{rawPrg: p, pc: 0}
 }
 
+// return codes:
+// 0=success, 1=unfinished, 2=parseError
 func (p *Parser) parse() int {
 	lines := strings.Split(p.rawPrg, "\n")
 	for i, l := range lines {
 		words := splitLine(l)
 
 		// check first line
-		if i == 0 && words.areNext("as", "principal") {
-			user := words.next()
-			pw := words.next()
-			if !words.parseError && isValidIdentifier(user) && isValidString(pw) {
-				p.prg= Program{
-					user: user,
-					pw: pw,
-					cmds: make([]Cmd, 1),
+		if i == 0 {
+			if words.areNext("as", "principal") {
+				user := words.next()
+				pw := words.next()
+				if !words.parseError {
+					p.prg= Program{
+						user: user,
+						pw: pw,
+						cmds: make([]Cmd, 0),
+					}
 				}
 			} else {
 				return 2
 			}
+			continue
 		}
 
 		// check other lines
@@ -55,7 +61,12 @@ func (p *Parser) parse() int {
 			p.prg.cmds = append(p.prg.cmds, CmdExit{})
 		case "return":
 			p.prg.cmds = append(p.prg.cmds, CmdReturn{})
+		case "***":
+			return 0
+		default:
+			continue
 		}
+
 
 		// check if line parse was successful
 		if words.parseError {

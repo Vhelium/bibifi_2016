@@ -10,6 +10,7 @@ import (
 	"log"
 	"strings"
 	"regexp"
+	"encoding/json"
 )
 
 var legitStringRegex *regexp.Regexp;
@@ -72,12 +73,41 @@ func main() {
 					string(bufCmd[tlen-4:tlen]) ==  "***\n") {
 				fmt.Printf(string(bufCmd))
 				fmt.Printf(">>>>>>>>>>>> Program End >>>>>>>>>>>>\n")
-				conn.Write([]byte("okthxbye\n"))
+
+				r := executeProgram(string(bufCmd))
+				results := fmt.Sprintf("%s\n", r)
+				conn.Write([]byte(results))
 				conn.Close()
 				break
 			}
 		}
 	}
+}
+
+func executeProgram(prg string) string {
+	// parse
+	parser := newParser(prg)
+	res := parser.parse()
+	if res != 0 {
+		return "{\"status\":\"FAILED\"}"
+	}
+
+	// env
+	env := &Environment{results: make([]Result,0)}
+
+	// execute
+	_ = parser.prg.execute(env)
+
+	result := ""
+	for _, r := range env.results {
+		fmt.Printf("marshalling: %s\n", r)
+		res, e := json.Marshal(r)
+		result += string(res)
+		if e != nil { fmt.Printf("err: ", e) }
+		fmt.Printf("ress: %s\n", res)
+	}
+
+	return result
 }
 
 func initialize() {
