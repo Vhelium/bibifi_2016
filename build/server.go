@@ -5,7 +5,7 @@ import (
 	"net"
 	"os"
 	"time"
-	"bufio"
+	"io"
 	"strconv"
 	"log"
 	"strings"
@@ -13,6 +13,7 @@ import (
 )
 
 var legitStringRegex *regexp.Regexp;
+var legitIdentifierRegex *regexp.Regexp;
 
 func main() {
 	initialize()
@@ -50,39 +51,30 @@ func main() {
 		conn.SetReadDeadline(time.Now().Add(time.Second * 10))
 		conn.SetWriteDeadline(time.Now().Add(time.Second * 10))
 
-		r := bufio.NewReader(conn)
-		ch := make(chan string, 1) // buffered line
-		timeout := make(chan bool, 1) // timeout
-
+		tlen := 0;
+		bufCmd := make ([]byte, 0, 4096)
+		bufRcv := make ([]byte, 2048)
 		fmt.Printf(">>>>>>>>>>>> Program Start >>>>>>>>>>\n")
-		P:
 		for { // poll for input
-			go func() {
-				m, err := r.ReadString('\n')
-				if err == nil {
-					ch <- m
+			llen, err := conn.Read(bufRcv)
+			tlen += llen
+			if err != nil {
+				if err != io.EOF {
+					fmt.Println("Read error:", err)
 				}
-			}()
-			go func() {
-				time.Sleep(5 * time.Second)
-				timeout <- true
-			}()
+				break
+			}
 
-			select {
-			case m:= <-ch:
-				// we got some data
-				status := parseLine(m)
+			// TODO: make it more efficient (i.e. direct copy)
+			bufCmd = append(bufCmd, bufRcv[:llen]...)
 
-				if status != 0 {
-					fmt.Printf(">>>>>>>>>>>> Program End >>>>>>>>>>>>\n")
-					conn.Write([]byte("okthxbye\n"))
-					conn.Close()
-					break
-				}
-			case <-timeout:
-				// read timed out
-				log.Printf("Client timed out.")
-				break P
+			if tlen >= 3 && (string(bufCmd[tlen-3:tlen]) ==  "***" ||
+					string(bufCmd[tlen-4:tlen]) ==  "***\n") {
+				fmt.Printf(string(bufCmd))
+				fmt.Printf(">>>>>>>>>>>> Program End >>>>>>>>>>>>\n")
+				conn.Write([]byte("okthxbye\n"))
+				conn.Close()
+				break
 			}
 		}
 	}
@@ -90,6 +82,7 @@ func main() {
 
 func initialize() {
 	legitStringRegex = regexp.MustCompile(`[A-Za-z0-9_ ,;\.?!-]*`)
+	legitIdentifierRegex = regexp.MustCompile(`[A-Za-z][A-Za-z0-9_]*`)
 }
 
 func isArgPortLegit(port string) bool {
@@ -106,12 +99,16 @@ func isArgPortLegit(port string) bool {
 }
 
 func isArgPwLegit(pw string) bool {
-	return len(pw) <= 4096 && isStringLegit(pw)
+	return len(pw) <= 4096 && isValidString(pw)
 }
 
-func isStringLegit(s string) bool {
+func isValidString(s string) bool {
 	//return len(s) <= 65535 && ...
 	return s == legitStringRegex.FindString(s);
+}
+
+func isValidIdentifier(s string) bool {
+	return len(s) <= 255 && s == legitStringRegex.FindString(s);
 }
 
 func parseLine(l string) int {
