@@ -86,20 +86,19 @@ func main() {
 
 func executeProgram(p string) string {
 	// parse
-	res, prg := ParseProgram(p)
-	if res != 0 {
+	res, prg := parseProgram(p)
+	if res != 0 || prg == nil {
 		return "{\"status\":\"FAILED\"}"
 	}
 
 	// env
-	env := &Environment{results: make([]Result,0)}
+	env := &ProgramEnv{results: make([]Result,0)}
 
 	// execute
 	_ = prg.execute(env)
 
 	result := ""
 	for _, r := range env.results {
-		fmt.Printf("marshalling: %s\n", r)
 		res, e := json.Marshal(r)
 		result += string(res)
 		if e != nil { fmt.Printf("err: ", e) }

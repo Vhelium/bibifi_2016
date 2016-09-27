@@ -1,5 +1,7 @@
 package main
 
-type Environment struct {
+type ProgramEnv struct {
+	user string
+	pw string
 	results []Result
 }

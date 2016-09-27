@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"io"
 	"bytes"
+	"strings"
 )
 
 type Token int
@@ -14,7 +15,6 @@ const (
 	// Special tokens
 	ILLEGAL Token = iota
 	EOF
-	TERMINATE
 
 	// Literals
 	IDENT
@@ -29,7 +29,15 @@ const (
 	BRACKET_OPEN		// {
 	BRACKET_CLOSE	// }
 
-	// Keywords
+	// Specific Keywords
+	KV_TERMINATE
+	KV_RETURN
+	KV_EXIT
+
+	KV_AS
+	KV_PRINCIPAL
+	KV_PASSWORD
+	KV_DO
 )
 
 var eof = rune(0)
@@ -84,7 +92,7 @@ func (t *Tokenizer) Scan() (tok Token, lit string) {
 		return BRACKET_CLOSE, "}"
 	case '[':
 		if t.read() == ']' {
-			return BRACKET_CLOSE, "[]"
+			return EMPTYLIST, "[]"
 		} else {
 			return ILLEGAL, ""
 		}
@@ -92,13 +100,13 @@ func (t *Tokenizer) Scan() (tok Token, lit string) {
 		return EQUAL, "="
 	case '-':
 		if t.read() == '>' {
-			return BRACKET_CLOSE, "->"
+			return ARROW, "->"
 		} else {
 			return ILLEGAL, ""
 		}
 	case '*':
 		if t.read() == '*' && t.read() == '*' {
-			return BRACKET_CLOSE, "***"
+			return KV_TERMINATE, "***"
 		} else {
 			return ILLEGAL, ""
 		}
@@ -126,14 +134,28 @@ func (t *Tokenizer) scanIdent() (tok Token, lit string) {
 		}
 	}
 
-	// optionally, check if it's a keyword here
+	// check if it's a keyword here
 	// and separate it from the regular idents:
-	// switch strings.ToUpper(buf.String()) {
-	// case "FOR":
-	//		return FOR, buf.String()
-	// }
+	switch strings.ToUpper(buf.String()) {
+	case "RETURN":
+		return KV_RETURN, buf.String()
+	case "EXIT":
+		return KV_EXIT, buf.String()
+	case "AS":
+		return KV_AS, buf.String()
+	case "PRINCIPAL":
+		return KV_PRINCIPAL, buf.String()
+	case "PASSWORD":
+		return KV_PASSWORD, buf.String()
+	case "DO":
+		return KV_DO, buf.String()
+	}
 
-	return IDENT, buf.String()
+	if isValidIdentifier(buf.String()) {
+		return IDENT, buf.String()
+	} else {
+		return ILLEGAL, "invalidIdent"
+	}
 }
 
 func (t *Tokenizer) scanString() (tok Token, lit string) {
@@ -144,7 +166,11 @@ func (t *Tokenizer) scanString() (tok Token, lit string) {
 		if ch := t.read(); ch == eof {
 			return ILLEGAL, ""
 		} else if ch == '"' {
-			return STRING, buf.String()
+			if isValidString(buf.String()) {
+				return STRING, buf.String()
+			} else {
+				return ILLEGAL, "invalidString"
+			}
 		} else {
 			_, _ = buf.WriteRune(ch)
 		}

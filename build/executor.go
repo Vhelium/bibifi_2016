@@ -15,7 +15,7 @@ type Result struct {
 	Output interface{}	`json:"output,omitempty"`
 }
 
-func (p Program) execute(env *Environment) int {
+func (p Program) execute(env *ProgramEnv) int {
 	for _,cmd := range p.cmds {
 		r := cmd.execute(env)
 		if r != SUCCESS {
@@ -25,14 +25,20 @@ func (p Program) execute(env *Environment) int {
 	return FAILED // didn't terminate..
 }
 
-func (cmd CmdExit) execute(env *Environment) int {
+func (cmd CmdExit) execute(env *ProgramEnv) int {
 	env.results = append(env.results, Result{Status: "EXITING"})
 	return TERMINATED
 }
 
-func (cmd CmdReturn) execute(env *Environment) int {
+func (cmd CmdReturn) execute(env *ProgramEnv) int {
 	env.results = append(env.results, Result{Status: "RETURNING"})
 	return TERMINATED
+}
+
+func (cmd CmdAsPrincipal) execute(env *ProgramEnv) int {
+	env.user = cmd.user
+	env.pw = cmd.pw
+	return SUCCESS
 }
 
 // to fail, just assign: env.results := []Result{ {"status":"DENIED"} }
