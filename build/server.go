@@ -13,8 +13,9 @@ import (
 	"encoding/json"
 )
 
-var legitStringRegex *regexp.Regexp;
-var legitIdentifierRegex *regexp.Regexp;
+var legitStringRegex *regexp.Regexp
+var legitIdentifierRegex *regexp.Regexp
+var globals *GlobalEnv
 
 func main() {
 	initialize()
@@ -39,6 +40,8 @@ func main() {
 	}
 
 	log.Printf("Starting server on port %s w/ password %s", port, password)
+	// add admin user to db
+	globals.db.AddUser("admin", password)
 
 	ln, err := net.Listen("tcp", ":"+port)
 	vcheck(err)
@@ -92,7 +95,7 @@ func executeProgram(p string) string {
 	}
 
 	// env
-	env := &ProgramEnv{results: make([]Result,0)}
+	env := NewProgramEnv(globals)
 
 	// execute
 	_ = prg.execute(env)
@@ -111,6 +114,7 @@ func executeProgram(p string) string {
 func initialize() {
 	legitStringRegex = regexp.MustCompile(`[A-Za-z0-9_ ,;\.?!-]*`)
 	legitIdentifierRegex = regexp.MustCompile(`[A-Za-z][A-Za-z0-9_]*`)
+	globals = NewGlobalEnv()
 }
 
 func isArgPortLegit(port string) bool {

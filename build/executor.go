@@ -38,7 +38,12 @@ func (cmd CmdReturn) execute(env *ProgramEnv) int {
 func (cmd CmdAsPrincipal) execute(env *ProgramEnv) int {
 	env.user = cmd.user
 	env.pw = cmd.pw
-	return SUCCESS
+	if env.globals.db.isLoginCorrect(env.user, env.pw) {
+		return SUCCESS
+	} else {
+		env.results = append(env.results, Result{Status: "DENIED"})
+		return DENIED
+	}
 }
 
 // to fail, just assign: env.results := []Result{ {"status":"DENIED"} }

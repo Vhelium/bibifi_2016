@@ -34,10 +34,27 @@ const (
 	KV_RETURN
 	KV_EXIT
 
+	KV_ALL
+	KV_APPEND
 	KV_AS
-	KV_PRINCIPAL
-	KV_PASSWORD
+	KV_CHANGE
+	KV_CREATE
+	KV_DEFAULT
+	KV_DELEGATE
+	KV_DELEGATION
+	KV_DELEGATOR
+	KV_DELETE
 	KV_DO
+	KV_FOREACH
+	KV_IN
+	KV_LOCAL
+	KV_PASSWORD
+	KV_PRINCIPAL
+	KV_READ
+	KV_REPLACEWITH
+	KV_SET
+	KV_TO
+	KV_WRITE
 )
 
 var eof = rune(0)
@@ -141,14 +158,48 @@ func (t *Tokenizer) scanIdent() (tok Token, lit string) {
 		return KV_RETURN, buf.String()
 	case "EXIT":
 		return KV_EXIT, buf.String()
+	case "ALL":
+		return KV_ALL, buf.String()
+	case "APPEND":
+		return KV_APPEND, buf.String()
 	case "AS":
 		return KV_AS, buf.String()
-	case "PRINCIPAL":
-		return KV_PRINCIPAL, buf.String()
-	case "PASSWORD":
-		return KV_PASSWORD, buf.String()
+	case "CHANGE":
+		return KV_CHANGE, buf.String()
+	case "CREATE":
+		return KV_CREATE, buf.String()
+	case "DEFAULT":
+		return KV_DEFAULT, buf.String()
+	case "DELEGATE":
+		return KV_DELEGATE, buf.String()
+	case "DELEGATION":
+		return KV_DELEGATION, buf.String()
+	case "DELEGATOR":
+		return KV_DELEGATOR, buf.String()
+	case "DELETE":
+		return KV_DELETE, buf.String()
 	case "DO":
 		return KV_DO, buf.String()
+	case "FOREACH":
+		return KV_FOREACH, buf.String()
+	case "IN":
+		return KV_IN, buf.String()
+	case "LOCAL":
+		return KV_LOCAL, buf.String()
+	case "PASSWORD":
+		return KV_PASSWORD, buf.String()
+	case "PRINCIPAL":
+		return KV_PRINCIPAL, buf.String()
+	case "READ":
+		return KV_READ, buf.String()
+	case "REPLACEWITH":
+		return KV_REPLACEWITH, buf.String()
+	case "SET":
+		return KV_SET, buf.String()
+	case "TO":
+		return KV_TO, buf.String()
+	case "WRITE":
+		return KV_WRITE, buf.String()
 	}
 
 	if isValidIdentifier(buf.String()) {
