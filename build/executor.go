@@ -35,5 +35,4 @@ func (cmd CmdReturn) execute(env *Environment) int {
 	return TERMINATED
 }
 
-
 // to fail, just assign: env.results := []Result{ {"status":"DENIED"} }

@@ -84,10 +84,9 @@ func main() {
 	}
 }
 
-func executeProgram(prg string) string {
+func executeProgram(p string) string {
 	// parse
-	parser := newParser(prg)
-	res := parser.parse()
+	res, prg := ParseProgram(p)
 	if res != 0 {
 		return "{\"status\":\"FAILED\"}"
 	}
@@ -96,7 +95,7 @@ func executeProgram(prg string) string {
 	env := &Environment{results: make([]Result,0)}
 
 	// execute
-	_ = parser.prg.execute(env)
+	_ = prg.execute(env)
 
 	result := ""
 	for _, r := range env.results {
