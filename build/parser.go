@@ -40,7 +40,11 @@ type CmdSet struct {
 	expr Expr
 }
 
-type CmdCreatePr struct { /*TODO*/ }
+type CmdCreatePr struct {
+	principal string
+	pw string
+}
+
 type CmdChangePw struct { /*TODO*/ }
 type CmdAppend struct { /*TODO*/ }
 type CmdLocal struct { /*TODO*/ }
@@ -128,7 +132,6 @@ func (p *Parser) parseLine(i int, l string) (int, Cmd) {
 			case KV_APPEND: return p.parseCmdAppend(tokenizer)
 			case KV_LOCAL: return p.parseCmdLocal(tokenizer)
 			case KV_FOREACH: return p.parseCmdForeach(tokenizer)
-			case KV_SET: return p.parseCmdSetDeleg(tokenizer)
 			case KV_DELETE: return p.parseCmdDeleteDeleg(tokenizer)
 			case KV_DEFAULT: return p.parseCmdDefaultDeleg(tokenizer)
 			default: return 1, nil
@@ -198,7 +201,9 @@ func (p *Parser) parseCmdSet(t *Tokenizer) (int, Cmd) {
 
 	// get identifier
 	tok, ident := t.Scan()
-	if tok != IDENT {
+	if tok == KV_DELEGATION {
+		return p.parseCmdSetDeleg(t)
+	} else if tok != IDENT {
 		parseError("expected IDENT in CmdSet")
 		return 2, nil
 	}
@@ -287,8 +292,31 @@ func (p *Parser) parseValue(t *Tokenizer) (int, Expr) {
 }
 
 func(p *Parser) parseCmdCreatePr(t *Tokenizer) (int, Cmd) {
-	 //TODO
-	 return 0, CmdCreatePr{}
+	cmd := CmdCreatePr{}
+
+	// read PRINCIPAL token
+	if tok, _ := t.Scan(); tok != KV_PRINCIPAL {
+		parseError("expected PR in CmdCreatePr")
+		return 2, nil
+	}
+
+	// get user
+	tok, pr := t.Scan()
+	if tok != IDENT {
+		parseError("expected IDENT in CmdCreatePr")
+		return 2, nil
+	}
+	cmd.principal = pr
+
+	// get pw
+	tok, pw := t.Scan()
+	if tok != STRING {
+		parseError("expected STRING in CmdCreatePr")
+		return 2, nil
+	}
+	cmd.pw = pw
+
+	return 0, cmd
 }
 
 func(p *Parser) parseCmdChangePw(t *Tokenizer) (int, Cmd) {
@@ -313,6 +341,8 @@ func(p *Parser) parseCmdForeach(t *Tokenizer) (int, Cmd) {
 
 func(p *Parser) parseCmdSetDeleg(t *Tokenizer) (int, Cmd) {
 	 //TODO
+	 // SET and DELEGATION tokens have already been read by now!!
+	 // next: read IDENT token for 'x'
 	 return 0, CmdSetDeleg{}
 }
 

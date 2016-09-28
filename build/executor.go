@@ -115,7 +115,20 @@ func (cmd CmdSet) execute(env *ProgramEnv) int {
 	}
 }
 
-func (cmd CmdCreatePr) execute(env *ProgramEnv) int { /* TODO */ return SUCCESS }
+func (cmd CmdCreatePr) execute(env *ProgramEnv) int {
+	if env.globals.db.doesUserExist(cmd.principal) {
+		env.results = []Result{ Result{Status: "FAILED"} }
+		return FAILED
+	}
+	if !env.globals.db.isUserAdmin(env.user) {
+		env.results = []Result{ Result{Status: "DENIED"} }
+		return DENIED
+	}
+	env.globals.db.addUser(cmd.principal, cmd.pw)
+	env.results = append(env.results, Result{Status: "CREATE_PRINCIPAL"})
+	return SUCCESS
+}
+
 func (cmd CmdChangePw) execute(env *ProgramEnv) int { /* TODO */ return SUCCESS }
 func (cmd CmdAppend) execute(env *ProgramEnv) int { /* TODO */ return SUCCESS }
 func (cmd CmdLocal) execute(env *ProgramEnv) int { /* TODO */ return SUCCESS }

@@ -194,6 +194,15 @@ func (db *Database) addUser(name, pw string) {
 	db.users[name] = &EntryUser{name: name, pw: pw}
 }
 
+func (db *Database) doesUserExist(name string) bool {
+	_, ok := db.users[name]
+	return ok
+}
+
+func (db *Database) isUserAdmin(name string) bool {
+	return name == "admin"
+}
+
 func (db *Database) getVarValueFor(ident, user string) (int, string) {
 	if !db.hasUserPrivilege(ident, user, READ) {
 		return DB_INSUFFICIENT_RIGHTS, ""
