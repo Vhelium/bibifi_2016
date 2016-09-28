@@ -26,7 +26,7 @@ const (
 	EMPTYLIST		// []
 	EQUAL			// =
 	ARROW			// ->
-	BRACKET_OPEN		// {
+	BRACKET_OPEN	// {
 	BRACKET_CLOSE	// }
 
 	// Specific Keywords

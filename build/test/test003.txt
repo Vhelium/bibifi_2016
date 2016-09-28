@@ -1,3 +1,4 @@
 as principal admin password "admin" do
+    set x = "top kek"
     exit
 ***

@@ -41,7 +41,7 @@ func main() {
 
 	log.Printf("Starting server on port %s w/ password %s", port, password)
 	// add admin user to db
-	globals.db.AddUser("admin", password)
+	globals.db.addUser("admin", password)
 
 	ln, err := net.Listen("tcp", ":"+port)
 	vcheck(err)
@@ -103,10 +103,12 @@ func executeProgram(p string) string {
 	result := ""
 	for _, r := range env.results {
 		res, e := json.Marshal(r)
-		result += string(res)
+		result += string(res) + "\n"
 		if e != nil { fmt.Printf("err: ", e) }
 		fmt.Printf("ress: %s\n", res)
 	}
+
+	env.globals.db.printDB()
 
 	return result
 }

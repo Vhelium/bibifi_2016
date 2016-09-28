@@ -34,6 +34,36 @@ type CmdAsPrincipal struct {
 	pw string
 }
 
+type CmdSet struct {
+	ident string
+	expr Expr
+}
+
+type Expr interface {
+	// []
+	// {x=<val>, ..}
+	// x
+	// x.y
+	// "string"
+	eval(env *ProgramEnv) (int, *Value)
+}
+
+type ExprIdent struct {
+	ident string
+}
+type ExprFieldAcc struct {
+	ident string
+	field string
+}
+type ExprString struct {
+	val string
+}
+type ExprEmptyList struct {
+}
+type ExprRecord struct {
+	fields map[string]Expr
+}
+
 func newParser(p string) (*Parser) {
 	return &Parser{rawPrg: p}
 }
@@ -82,6 +112,8 @@ func (p *Parser) parseLine(i int, l string) (int, Cmd) {
 			return p.parseCmdReturn(tokenizer)
 		} else if tok == KV_AS {
 			return p.parseCmdAsPrincipal(tokenizer)
+		} else if tok == KV_SET {
+			return p.parseCmdSet(tokenizer)
 		}
 	}
 
@@ -114,7 +146,7 @@ func (p *Parser) parseCmdAsPrincipal(t *Tokenizer) (int, Cmd) {
 	// password token
 	if tok, _ := t.Scan(); tok != KV_PASSWORD {	return 2, nil}
 
-	// read user
+	// read pw
 	tok, pw := t.Scan()
 	if tok != STRING { return 2, nil }
 	cmd.pw = pw
@@ -123,4 +155,48 @@ func (p *Parser) parseCmdAsPrincipal(t *Tokenizer) (int, Cmd) {
 	if tok, _ := t.Scan(); tok != KV_DO { return 2, nil }
 
 	return 0, cmd
+}
+
+func (p *Parser) parseCmdSet(t *Tokenizer) (int, Cmd) {
+	cmd := CmdSet{}
+
+	// get identifier
+	tok, ident := t.Scan()
+	if tok != IDENT { return 2, nil }
+	cmd.ident = ident
+
+	// read eq token
+	if tok, _ := t.Scan(); tok != EQUAL { return 2, nil }
+
+	// get expression
+	s, expr := p.parseExpr(t)
+	if s == 0 {
+		return 0, CmdSet{ident: ident, expr: expr}
+	}
+	return 2, nil
+}
+
+func (p *Parser) parseExpr(t *Tokenizer) (int, Expr) {
+	tok, exp := t.Scan()
+	if tok == STRING {
+		return 0, ExprString{val: exp}
+	} else if tok == EMPTYLIST {
+		return 0, ExprEmptyList{}
+	} else if tok == BRACKET_OPEN {
+		//TODO: parse record
+	} else if tok == IDENT {
+		// check if its a field access
+		if tok2, _ := t.Scan(); tok2 == DOT {
+			if tok3, exp3 := t.Scan(); tok3 == IDENT {
+				return 0, ExprFieldAcc{ident: exp, field: exp3}
+			} else {
+				// we really need an identifier here
+				return 2, nil
+			}
+		} else {
+			t.unread()
+			return 0, ExprIdent{ident: exp}
+		}
+	}
+	return 0, ExprIdent{}
 }
