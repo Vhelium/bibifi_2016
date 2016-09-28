@@ -24,6 +24,7 @@ type Cmd interface {
 }
 
 type CmdReturn struct {
+	expr Expr
 }
 
 type CmdExit struct {
@@ -38,6 +39,15 @@ type CmdSet struct {
 	ident string
 	expr Expr
 }
+
+type CmdCreatePr struct { /*TODO*/ }
+type CmdChangePw struct { /*TODO*/ }
+type CmdAppend struct { /*TODO*/ }
+type CmdLocal struct { /*TODO*/ }
+type CmdForeach struct { /*TODO*/ }
+type CmdSetDeleg struct { /*TODO*/ }
+type CmdDeleteDeleg struct { /*TODO*/ }
+type CmdDefaultDeleg struct { /*TODO*/ }
 
 type Expr interface {
 	// []
@@ -66,6 +76,10 @@ type ExprRecord struct {
 
 func newParser(p string) (*Parser) {
 	return &Parser{rawPrg: p}
+}
+
+func parseError(m string, p... interface{}) {
+	fmt.Printf("[PERR]: " + m + "\n", p...)
 }
 
 // return codes:
@@ -102,18 +116,22 @@ func (p *Parser) parseLine(i int, l string) (int, Cmd) {
 	for {
 		tok, lit := tokenizer.Scan()
 		fmt.Printf("{%d, %s}, ", tok, lit)
-		if tok == EOF {
-			return 1, nil // not implemented function
-		} else if tok == KV_TERMINATE {
-			return 0, nil
-		} else if tok == KV_EXIT {
-			return p.parseCmdExit(tokenizer)
-		} else if tok == KV_RETURN {
-			return p.parseCmdReturn(tokenizer)
-		} else if tok == KV_AS {
-			return p.parseCmdAsPrincipal(tokenizer)
-		} else if tok == KV_SET {
-			return p.parseCmdSet(tokenizer)
+		switch tok {
+			case EOF: return 1, nil // not implemented function
+			case KV_TERMINATE: return 0, nil
+			case KV_EXIT: return p.parseCmdExit(tokenizer)
+			case KV_RETURN:	return p.parseCmdReturn(tokenizer)
+			case KV_AS: return p.parseCmdAsPrincipal(tokenizer)
+			case KV_SET: return p.parseCmdSet(tokenizer)
+			case KV_CREATE: return p.parseCmdCreatePr(tokenizer)
+			case KV_CHANGE: return p.parseCmdChangePw(tokenizer)
+			case KV_APPEND: return p.parseCmdAppend(tokenizer)
+			case KV_LOCAL: return p.parseCmdLocal(tokenizer)
+			case KV_FOREACH: return p.parseCmdForeach(tokenizer)
+			case KV_SET: return p.parseCmdSetDeleg(tokenizer)
+			case KV_DELETE: return p.parseCmdDeleteDeleg(tokenizer)
+			case KV_DEFAULT: return p.parseCmdDefaultDeleg(tokenizer)
+			default: return 1, nil
 		}
 	}
 
@@ -126,8 +144,13 @@ func (p *Parser) parseCmdExit(t *Tokenizer) (int, Cmd) {
 }
 
 func (p *Parser) parseCmdReturn(t *Tokenizer) (int, Cmd) {
-	cmd := CmdReturn{}
-	return 0, cmd
+	// get expression
+	s, expr := p.parseExpr(t)
+	if s == 0 {
+		return 0, CmdReturn{expr: expr}
+	}
+	parseError("invalid CmdReturn")
+	return 2, nil
 }
 
 func (p *Parser) parseCmdAsPrincipal(t *Tokenizer) (int, Cmd) {
@@ -135,24 +158,37 @@ func (p *Parser) parseCmdAsPrincipal(t *Tokenizer) (int, Cmd) {
 
 	// read next keyword
 	if tok, _ := t.Scan(); tok != KV_PRINCIPAL {
+		parseError("expected PRINCIPAL in CmdAsPr")
 		return 2, nil
 	}
 
 	// read user
 	tok, user := t.Scan()
-	if tok != IDENT { return 2, nil }
+	if tok != IDENT {
+		parseError("expected IDENT in CmdAsPr")
+		return 2, nil
+	}
 	cmd.user = user
 
 	// password token
-	if tok, _ := t.Scan(); tok != KV_PASSWORD {	return 2, nil}
+	if tok, _ := t.Scan(); tok != KV_PASSWORD {
+		parseError("expected PASSWORD in CmdAsPr")
+		return 2, nil
+	}
 
 	// read pw
 	tok, pw := t.Scan()
-	if tok != STRING { return 2, nil }
+	if tok != STRING {
+		parseError("expected STRING in CmdAsPr")
+		return 2, nil
+	}
 	cmd.pw = pw
 
 	// do token
-	if tok, _ := t.Scan(); tok != KV_DO { return 2, nil }
+	if tok, _ := t.Scan(); tok != KV_DO {
+		parseError("expected DO in CmdAsPr")
+		return 2, nil
+	}
 
 	return 0, cmd
 }
@@ -162,41 +198,130 @@ func (p *Parser) parseCmdSet(t *Tokenizer) (int, Cmd) {
 
 	// get identifier
 	tok, ident := t.Scan()
-	if tok != IDENT { return 2, nil }
+	if tok != IDENT {
+		parseError("expected IDENT in CmdSet")
+		return 2, nil
+	}
 	cmd.ident = ident
 
 	// read eq token
-	if tok, _ := t.Scan(); tok != EQUAL { return 2, nil }
+	if tok, _ := t.Scan(); tok != EQUAL {
+		parseError("expected EQ in CmdSet")
+		return 2, nil
+	}
 
 	// get expression
 	s, expr := p.parseExpr(t)
 	if s == 0 {
 		return 0, CmdSet{ident: ident, expr: expr}
 	}
+	parseError("invalid CmdSet")
 	return 2, nil
 }
 
 func (p *Parser) parseExpr(t *Tokenizer) (int, Expr) {
+	tok, e := t.Scan()
+	if tok == EMPTYLIST {
+		return 0, ExprEmptyList{}
+	} else if tok == BRACKET_OPEN {
+		// parse record
+		fields := make(map[string]Expr, 0)
+		for {
+			// read ident
+			iTok, iExp := t.Scan()
+			if iTok != IDENT {
+				parseError("expected IDENT in record")
+				return 2, nil
+			}
+			// read EQUAL
+			if eTok, _ := t.Scan(); eTok != EQUAL {
+				parseError("expected EQ in record")
+				return 2, nil
+			}
+			// read <value>
+			s, valExp := p.parseValue(t)
+			if s == 0 {
+				fields[iExp] = valExp
+			} else {
+				parseError("invalid value in record")
+				return 2, nil
+			}
+			// check for comma, bracket or EOF/INVALID
+			fTok, _ := t.Scan()
+			if fTok == BRACKET_CLOSE {
+				// successful parse
+				return 0, ExprRecord{fields: fields}
+			} else if fTok == COMMA {
+				continue
+			} else {
+				parseError("invalid field in record")
+				return 2, nil
+			}
+		}
+	} else {
+		t.Unscan(tok, e)
+		return p.parseValue(t)
+	}
+}
+
+func (p *Parser) parseValue(t *Tokenizer) (int, Expr) {
 	tok, exp := t.Scan()
 	if tok == STRING {
 		return 0, ExprString{val: exp}
-	} else if tok == EMPTYLIST {
-		return 0, ExprEmptyList{}
-	} else if tok == BRACKET_OPEN {
-		//TODO: parse record
 	} else if tok == IDENT {
 		// check if its a field access
-		if tok2, _ := t.Scan(); tok2 == DOT {
+		if tok2, exp2 := t.Scan(); tok2 == DOT {
 			if tok3, exp3 := t.Scan(); tok3 == IDENT {
 				return 0, ExprFieldAcc{ident: exp, field: exp3}
 			} else {
-				// we really need an identifier here
+				parseError("Expected Identifier after '.'")
 				return 2, nil
 			}
 		} else {
-			t.unread()
+			t.Unscan(tok2, exp2)
 			return 0, ExprIdent{ident: exp}
 		}
 	}
-	return 0, ExprIdent{}
+	parseError("invalid Value, got %s(%d) instead", exp, tok)
+	return 2, nil
+}
+
+func(p *Parser) parseCmdCreatePr(t *Tokenizer) (int, Cmd) {
+	 //TODO
+	 return 0, CmdCreatePr{}
+}
+
+func(p *Parser) parseCmdChangePw(t *Tokenizer) (int, Cmd) {
+	 //TODO
+	 return 0, CmdChangePw{}
+}
+
+func(p *Parser) parseCmdAppend(t *Tokenizer) (int, Cmd) {
+	 //TODO
+	 return 0, CmdAppend{}
+}
+
+func(p *Parser) parseCmdLocal(t *Tokenizer) (int, Cmd) {
+	 //TODO
+	 return 0, CmdLocal{}
+}
+
+func(p *Parser) parseCmdForeach(t *Tokenizer) (int, Cmd) {
+	 //TODO
+	 return 0, CmdForeach{}
+}
+
+func(p *Parser) parseCmdSetDeleg(t *Tokenizer) (int, Cmd) {
+	 //TODO
+	 return 0, CmdSetDeleg{}
+}
+
+func(p *Parser) parseCmdDeleteDeleg(t *Tokenizer) (int, Cmd) {
+	 //TODO
+	 return 0, CmdDeleteDeleg{}
+}
+
+func(p *Parser) parseCmdDefaultDeleg(t *Tokenizer) (int, Cmd) {
+	 //TODO
+	 return 0, CmdDefaultDeleg{}
 }

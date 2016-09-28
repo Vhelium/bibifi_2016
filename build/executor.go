@@ -12,23 +12,24 @@ const (
 
 type Result struct {
 	Status string		`json:"status"`
-	Output interface{}	`json:"output,omitempty"`
+	Output string		`json:"output,omitempty"`
 }
 
 type Value struct {
-	s int
+	mode int
 	val string
 	vals map[string]string
+	list []*Value
 }
 
 func (val ExprString) eval(env *ProgramEnv) (int, *Value) {
-	return DB_VAR_FOUND, &Value{s:0, val: val.val}
+	return DB_VAR_FOUND, &Value{mode:0, val: val.val}
 }
 
 func (val ExprFieldAcc) eval(env *ProgramEnv) (int, *Value) {
 	s, v := env.globals.db.getFieldValueFor(val.ident, val.field, env.user)
 	if s == DB_VAR_FOUND {
-		return DB_VAR_FOUND, &Value{s:0, val: v}
+		return DB_VAR_FOUND, &Value{mode:0, val: v}
 	}
 	return s, nil
 }
@@ -36,13 +37,13 @@ func (val ExprFieldAcc) eval(env *ProgramEnv) (int, *Value) {
 func (val ExprIdent) eval(env *ProgramEnv) (int, *Value) {
 	s, v := env.globals.db.getVarValueFor(val.ident, env.user)
 	if s == DB_VAR_FOUND {
-		return DB_VAR_FOUND, &Value{s:0, val: v}
+		return DB_VAR_FOUND, &Value{mode:0, val: v}
 	}
 	return s, nil
 }
 
 func (expr ExprEmptyList) eval(env *ProgramEnv) (int, *Value) {
-	return DB_VAR_FOUND, &Value{s: 1, vals: make(map[string]string, 0)}
+	return DB_VAR_FOUND, &Value{mode: VAR_MODE_LIST, list: make([]*Value, 0)}
 }
 
 func (expr ExprRecord) eval(env *ProgramEnv) (int, *Value) {
@@ -56,7 +57,7 @@ func (expr ExprRecord) eval(env *ProgramEnv) (int, *Value) {
 			f[k] = v.val
 		}
 	}
-	return DB_VAR_FOUND, &Value{s: 1, vals: f}
+	return DB_VAR_FOUND, &Value{mode: VAR_MODE_RECORD, vals: f}
 }
 
 func (p Program) execute(env *ProgramEnv) int {
@@ -75,7 +76,11 @@ func (cmd CmdExit) execute(env *ProgramEnv) int {
 }
 
 func (cmd CmdReturn) execute(env *ProgramEnv) int {
-	env.results = append(env.results, Result{Status: "RETURNING"})
+	_, o := cmd.expr.eval(env)
+	env.results = append(env.results, Result{
+		Status: "RETURNING",
+		Output: printValue(NewEntryVar("", o)) , //TODO: right format
+	})
 	return TERMINATED
 }
 
@@ -85,7 +90,7 @@ func (cmd CmdAsPrincipal) execute(env *ProgramEnv) int {
 	if env.globals.db.isLoginCorrect(env.user, env.pw) {
 		return SUCCESS
 	} else {
-		env.results = append(env.results, Result{Status: "DENIED"})
+		env.results = []Result{ Result{Status: "DENIED"} }
 		return DENIED
 	}
 }
@@ -93,26 +98,30 @@ func (cmd CmdAsPrincipal) execute(env *ProgramEnv) int {
 func (cmd CmdSet) execute(env *ProgramEnv) int {
 	s, val := cmd.expr.eval(env)
 	if s == DB_VAR_FOUND {
-		// check if variable exists && user has WRITE rights on it
-		if env.globals.db.doesGlobalVarExist(cmd.ident) {
-			if env.globals.db.hasUserPrivilege(cmd.ident, env.user, WRITE) {
-				env.globals.db.setGlobalVar(cmd.ident, val)
-			}
+		set := env.globals.db.setGlobalVarFor(cmd.ident, val, env.user)
+		if set == DB_SUCCESS {
+			env.results = append(env.results, Result{Status: "SET"})
+			return SUCCESS
 		} else {
-			// otherwise, create new w/ corresponding rights
-			env.globals.db.setGlobalVar(cmd.ident, val)
-			env.globals.db.setAllDelegations(cmd.ident, "admin", env.user)
+			env.results = []Result{ Result{Status: "DENIED"} }
+			return DENIED
 		}
-
-		env.results = append(env.results, Result{Status: "SET"})
-		return SUCCESS
 	} else if s == DB_INSUFFICIENT_RIGHTS {
-		env.results = append(env.results, Result{Status: "DENIED"})
+		env.results = []Result{ Result{Status: "DENIED"} }
 		return DENIED
 	} else {
-		env.results = append(env.results, Result{Status: "FAILED"})
+		env.results = []Result{ Result{Status: "FAILED"} }
 		return FAILED
 	}
 }
 
-// to fail, just assign: env.results := []Result{ {"status":"DENIED"} }
+func (cmd CmdCreatePr) execute(env *ProgramEnv) int { /* TODO */ return SUCCESS }
+func (cmd CmdChangePw) execute(env *ProgramEnv) int { /* TODO */ return SUCCESS }
+func (cmd CmdAppend) execute(env *ProgramEnv) int { /* TODO */ return SUCCESS }
+func (cmd CmdLocal) execute(env *ProgramEnv) int { /* TODO */ return SUCCESS }
+func (cmd CmdForeach) execute(env *ProgramEnv) int { /* TODO */ return SUCCESS }
+func (cmd CmdSetDeleg) execute(env *ProgramEnv) int { /* TODO */ return SUCCESS }
+func (cmd CmdDeleteDeleg) execute(env *ProgramEnv) int { /* TODO */ return SUCCESS }
+func (cmd CmdDefaultDeleg) execute(env *ProgramEnv) int { /* TODO */ return SUCCESS }
+
+// to fail, just assign: env.results := []Result{ Result{"status":"DENIED"} }

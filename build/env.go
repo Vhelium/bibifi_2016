@@ -2,6 +2,7 @@ package main
 
 type GlobalEnv struct {
 	db *Database
+	dbSnapshot *Database
 }
 
 type ProgramEnv struct {

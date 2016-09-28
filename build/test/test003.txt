@@ -1,4 +1,6 @@
 as principal admin password "admin" do
-    set x = "top kek"
-    exit
+    set x = {a="abc", b="def"}
+    set y = "kek"
+    set z = x.b
+    return z
 ***

@@ -55,16 +55,31 @@ const (
 	KV_SET
 	KV_TO
 	KV_WRITE
+
+	KV_SPLIT
+	KV_CONCAT
+	KV_TOLOWER
+	KV_NOTEQUAL
+	KV_EQUAL
+	KV_FILTEREACH
+	KV_WITH
+	KV_LET
 )
 
 var eof = rune(0)
 
+type ScanItem struct {
+	token Token
+	expr string
+}
+
 type Tokenizer struct {
 	r *bufio.Reader
+	undo []*ScanItem
 }
 
 func NewTokenizer(r io.Reader) *Tokenizer {
-	return &Tokenizer{r: bufio.NewReader(r)}
+	return &Tokenizer{r: bufio.NewReader(r), undo: make([]*ScanItem, 0)}
 }
 
 func (t *Tokenizer) read() rune {
@@ -77,8 +92,19 @@ func (t *Tokenizer) read() rune {
 
 func (t *Tokenizer) unread() { _ = t.r.UnreadRune() }
 
+func (t *Tokenizer) Unscan(tok Token, e string) {
+	t.undo = append(t.undo, &ScanItem{token: tok, expr: e})
+}
+
 // returns next token and literal value
 func (t *Tokenizer) Scan() (tok Token, lit string) {
+	if len(t.undo) > 0 {
+		// pop
+		var si *ScanItem
+		si, t.undo = t.undo[len(t.undo)-1], t.undo[:len(t.undo)-1]
+		// return the item directly
+		return si.token, si.expr
+	}
 	ch := t.read()
 
 	// ignore whitespace
@@ -200,6 +226,22 @@ func (t *Tokenizer) scanIdent() (tok Token, lit string) {
 		return KV_TO, buf.String()
 	case "WRITE":
 		return KV_WRITE, buf.String()
+	case "SPLIT":
+		return KV_SPLIT, buf.String()
+	case "CONCAT":
+		return KV_CONCAT, buf.String()
+	case "TOLOWER":
+		return KV_TOLOWER, buf.String()
+	case "NOTEQUAL":
+		return KV_NOTEQUAL, buf.String()
+	case "EQUAL":
+		return KV_EQUAL, buf.String()
+	case "FILTEREACH":
+		return KV_FILTEREACH, buf.String()
+	case "WITH":
+		return KV_WITH, buf.String()
+	case "LET":
+		return KV_LET, buf.String()
 	}
 
 	if isValidIdentifier(buf.String()) {

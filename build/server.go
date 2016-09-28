@@ -94,11 +94,18 @@ func executeProgram(p string) string {
 		return "{\"status\":\"FAILED\"}"
 	}
 
+	// backup db
+	SnapshotDatabase(globals)
+
 	// env
 	env := NewProgramEnv(globals)
 
 	// execute
-	_ = prg.execute(env)
+	res = prg.execute(env)
+	if res != TERMINATED {
+		// rollback db
+		RollbackDatabase(globals)
+	}
 
 	result := ""
 	for _, r := range env.results {
