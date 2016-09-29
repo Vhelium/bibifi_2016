@@ -97,7 +97,7 @@ func executeProgram(p string) string {
 	// backup db
 	SnapshotDatabase(globals)
 
-	// env
+	// set up program env
 	env := NewProgramEnv(globals)
 
 	// execute
@@ -115,7 +115,7 @@ func executeProgram(p string) string {
 		fmt.Printf("ress: %s\n", res)
 	}
 
-	env.globals.db.printDB()
+	env.printDB()
 
 	return result
 }

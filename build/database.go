@@ -31,9 +31,9 @@ const (
 )
 
 type Database struct {
-	principals map[string]*EntryUser					// 1:1
-	delegations map[string][]*EntryDelegation	// 1:N
-	vars map[string]*EntryVar					// 1:1
+	principals map[string]*EntryUser // 1:1
+	delegations map[string][]*EntryDelegation // 1:N
+	vars map[string]*EntryVar // 1:1
 }
 
 type EntryUser struct {
@@ -60,12 +60,11 @@ type EntryVar struct {
 }
 
 func NewDatabase() *Database {
-	db := Database{
+	return &Database{
 		principals: make(map[string]*EntryUser, 0),
 		delegations: make(map[string][]*EntryDelegation, 0),
 		vars: make(map[string]*EntryVar, 0),
 	}
-	return &db
 }
 
 func SnapshotDatabase(env *GlobalEnv) {
@@ -133,9 +132,26 @@ func NewEntryVar(ident string, val *Value) *EntryVar {
 	}
 }
 
+func NewValue(ev *EntryVar) *Value {
+	var l []*Value
+	if ev.mode == VAR_MODE_LIST {
+		l = make([]*Value, len(ev.list))
+		for i,v := range ev.list {
+			l[i] = NewValue(v)
+		}
+	}
+	return &Value {
+		mode: ev.mode,
+		val: ev.value,
+		vals: ev.fieldValues,
+		list: l,
+	}
+}
+
 // >>>>>>>>>>>>>> MISC >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-func (db *Database) printDB() {
+func (env *ProgramEnv) printDB() {
+	db := env.globals.db
 	fmt.Printf(">>> DATABASE DUMP >>>\n")
 	fmt.Printf("USERS:\n")
 	for k, v := range db.principals {
@@ -157,6 +173,10 @@ func (db *Database) printDB() {
 	}
 	fmt.Printf("\nGLOBALS:\n")
 	for k, v := range db.vars {
+		fmt.Printf("\t{%s: %s}\n", k, printValue(v))
+	}
+	fmt.Printf("\nLOCALS:\n")
+	for k, v := range env.locals {
 		fmt.Printf("\t{%s: %s}\n", k, printValue(v))
 	}
 	fmt.Printf("\n>>>>>>>>>>>>>>>>>>>>>\n")
@@ -212,14 +232,39 @@ func (db *Database) isUserAdmin(name string) bool {
 	return name == USER_ADMIN
 }
 
-func (db *Database) getVarValueFor(ident, principal string) (int, string) {
-	if !db.hasUserPrivilege(ident, principal, READ) {
-		return DB_INSUFFICIENT_RIGHTS, ""
+func (env *ProgramEnv) getVarValueFor(ident, principal string) (int, *Value) {
+	// check locals
+	if env.doesLocalVarExist(ident) {
+		return DB_VAR_FOUND, NewValue(env.getLocalVar(ident))
 	}
-	if ev, ok := db.vars[ident]; ok && ev.mode == 0 {
-		return DB_VAR_FOUND, ev.value
+
+	// check globals
+	if !env.globals.db.hasUserPrivilege(ident, principal, READ) {
+		return DB_INSUFFICIENT_RIGHTS, nil
 	}
-	return DB_VAR_NOT_FOUND, ""
+	if ev, ok := env.globals.db.vars[ident]; ok {
+		return DB_VAR_FOUND, NewValue(ev)
+	}
+	return DB_VAR_NOT_FOUND, nil
+}
+
+func (env *ProgramEnv) getLocalVar(ident string) *EntryVar {
+	return env.locals[ident]
+}
+
+func (env *ProgramEnv) setLocalVar(ident string, val *Value) int {
+	// check if variable already exists (global/locals)
+	if env.globals.db.doesGlobalVarExist(ident) ||
+			env.doesLocalVarExist(ident) {
+		return DB_VAR_NOT_FOUND
+	}
+	env.locals[ident] = NewEntryVar(ident, val)
+	return DB_SUCCESS
+}
+
+func (env *ProgramEnv) doesLocalVarExist(ident string) bool {
+	_, ok := env.locals[ident]
+	return ok
 }
 
 // check privileges before setting

@@ -1,4 +1,5 @@
 as principal admin password "admin" do
-   create principal alice "alices_password"
-   set msg = "Hi Alice. Good luck in Build-it, Break-it, Fix-it!"
-   set delegation msg admin read -> alice
+   local x = "localX"
+   set y = x
+   exit
+***

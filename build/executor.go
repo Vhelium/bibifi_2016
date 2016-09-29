@@ -35,9 +35,9 @@ func (val ExprFieldAcc) eval(env *ProgramEnv) (int, *Value) {
 }
 
 func (val ExprIdent) eval(env *ProgramEnv) (int, *Value) {
-	s, v := env.globals.db.getVarValueFor(val.ident, env.principal)
+	s, v := env.getVarValueFor(val.ident, env.principal)
 	if s == DB_VAR_FOUND {
-		return DB_VAR_FOUND, &Value{mode:0, val: v}
+		return DB_VAR_FOUND, v
 	}
 	return s, nil
 }
@@ -144,8 +144,27 @@ func (cmd CmdChangePw) execute(env *ProgramEnv) int {
 	}
 }
 
+func (cmd CmdLocal) execute(env *ProgramEnv) int {
+	s, val := cmd.expr.eval(env)
+	if s == DB_VAR_FOUND {
+		set := env.setLocalVar(cmd.ident, val)
+		if set == DB_SUCCESS {
+			env.results = append(env.results, Result{Status: "LOCAL"})
+			return SUCCESS
+		} else {
+			env.results = []Result{ Result{Status: "DENIED"} }
+			return DENIED
+		}
+	} else if s == DB_INSUFFICIENT_RIGHTS {
+		env.results = []Result{ Result{Status: "DENIED"} }
+		return DENIED
+	} else {
+		env.results = []Result{ Result{Status: "FAILED"} }
+		return FAILED
+	}
+}
+
 func (cmd CmdAppend) execute(env *ProgramEnv) int { /* TODO */ return SUCCESS }
-func (cmd CmdLocal) execute(env *ProgramEnv) int { /* TODO */ return SUCCESS }
 func (cmd CmdForeach) execute(env *ProgramEnv) int { /* TODO */ return SUCCESS }
 func (cmd CmdSetDeleg) execute(env *ProgramEnv) int { /* TODO */ return SUCCESS }
 func (cmd CmdDeleteDeleg) execute(env *ProgramEnv) int { /* TODO */ return SUCCESS }

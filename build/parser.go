@@ -50,8 +50,12 @@ type CmdChangePw struct {
 	pw string
 }
 
+type CmdLocal struct {
+	ident string
+	expr Expr
+}
+
 type CmdAppend struct { /*TODO*/ }
-type CmdLocal struct { /*TODO*/ }
 type CmdForeach struct { /*TODO*/ }
 type CmdSetDeleg struct { /*TODO*/ }
 type CmdDeleteDeleg struct { /*TODO*/ }
@@ -351,14 +355,37 @@ func(p *Parser) parseCmdChangePw(t *Tokenizer) (int, Cmd) {
 	return 0, cmd
 }
 
+func(p *Parser) parseCmdLocal(t *Tokenizer) (int, Cmd) {
+	cmd := CmdLocal{}
+
+	// get identifier
+	tok, ident := t.Scan()
+	if tok == KV_DELEGATION {
+		return p.parseCmdSetDeleg(t)
+	} else if tok != IDENT {
+		parseError("expected IDENT in CmdLocal")
+		return 2, nil
+	}
+	cmd.ident = ident
+
+	// read eq token
+	if tok, _ := t.Scan(); tok != EQUAL {
+		parseError("expected EQ in CmdLocal")
+		return 2, nil
+	}
+
+	// get expression
+	s, expr := p.parseExpr(t)
+	if s == 0 {
+		return 0, CmdLocal{ident: ident, expr: expr}
+	}
+	parseError("invalid CmdLocal")
+	return 2, nil
+}
+
 func(p *Parser) parseCmdAppend(t *Tokenizer) (int, Cmd) {
 	 //TODO
 	 return 0, CmdAppend{}
-}
-
-func(p *Parser) parseCmdLocal(t *Tokenizer) (int, Cmd) {
-	 //TODO
-	 return 0, CmdLocal{}
 }
 
 func(p *Parser) parseCmdForeach(t *Tokenizer) (int, Cmd) {
