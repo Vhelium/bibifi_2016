@@ -12,6 +12,11 @@ const (
 )
 
 const (
+	USER_ADMIN string = "admin"
+	USER_ANYONE string = "anyone"
+)
+
+const (
 	VAR_MODE_SINGLE int = 0
 	VAR_MODE_RECORD int = 1
 	VAR_MODE_LIST int = 2
@@ -26,7 +31,7 @@ const (
 )
 
 type Database struct {
-	users map[string]*EntryUser					// 1:1
+	principals map[string]*EntryUser					// 1:1
 	delegations map[string][]*EntryDelegation	// 1:N
 	vars map[string]*EntryVar					// 1:1
 }
@@ -56,7 +61,7 @@ type EntryVar struct {
 
 func NewDatabase() *Database {
 	db := Database{
-		users: make(map[string]*EntryUser, 0),
+		principals: make(map[string]*EntryUser, 0),
 		delegations: make(map[string][]*EntryDelegation, 0),
 		vars: make(map[string]*EntryVar, 0),
 	}
@@ -64,12 +69,12 @@ func NewDatabase() *Database {
 }
 
 func SnapshotDatabase(env *GlobalEnv) {
-	users := make(map[string]*EntryUser, len(env.db.users))
+	principals := make(map[string]*EntryUser, len(env.db.principals))
 	delegations := make(map[string][]*EntryDelegation, len(env.db.delegations))
 	vars := make(map[string]*EntryVar, len(env.db.vars))
 
-	for k,v := range env.db.users {
-		users[k] = &EntryUser{v.name, v.pw}
+	for k,v := range env.db.principals {
+		principals[k] = &EntryUser{v.name, v.pw}
 	}
 	for k,v := range env.db.delegations {
 		delegations[k] = make([]*EntryDelegation, len(v))
@@ -103,7 +108,7 @@ func SnapshotDatabase(env *GlobalEnv) {
 		}
 		vars[k] = &EntryVar{v.name, v.mode, v.value, fv, l}
 	}
-	env.dbSnapshot = &Database{users, delegations, vars}
+	env.dbSnapshot = &Database{principals, delegations, vars}
 }
 
 func RollbackDatabase(env *GlobalEnv) {
@@ -133,7 +138,7 @@ func NewEntryVar(ident string, val *Value) *EntryVar {
 func (db *Database) printDB() {
 	fmt.Printf(">>> DATABASE DUMP >>>\n")
 	fmt.Printf("USERS:\n")
-	for k, v := range db.users {
+	for k, v := range db.principals {
 		fmt.Printf("\t{%s: %s-%s}\n", k, v.name, v.pw)
 	}
 	fmt.Printf("\nDELEGATIONS:\n")
@@ -177,12 +182,12 @@ func printValue(v *EntryVar) string {
 // >>>>>>>>>>>>>>> QUERIES >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 func (db *Database) isLoginCorrect(name, pw string) bool {
-	u := db.users[name]
+	u := db.principals[name]
 	return u != nil && u.pw == pw
 }
 
 func (db *Database) isUserExists(name string) bool {
-	for k, _ := range db.users {
+	for k, _ := range db.principals {
 		if k == name {
 			return true
 		}
@@ -191,20 +196,24 @@ func (db *Database) isUserExists(name string) bool {
 }
 
 func (db *Database) addUser(name, pw string) {
-	db.users[name] = &EntryUser{name: name, pw: pw}
+	db.principals[name] = &EntryUser{name: name, pw: pw}
+}
+
+func (db *Database) changePassword(name, pw string) {
+	db.principals[name].pw = pw
 }
 
 func (db *Database) doesUserExist(name string) bool {
-	_, ok := db.users[name]
+	_, ok := db.principals[name]
 	return ok
 }
 
 func (db *Database) isUserAdmin(name string) bool {
-	return name == "admin"
+	return name == USER_ADMIN
 }
 
-func (db *Database) getVarValueFor(ident, user string) (int, string) {
-	if !db.hasUserPrivilege(ident, user, READ) {
+func (db *Database) getVarValueFor(ident, principal string) (int, string) {
+	if !db.hasUserPrivilege(ident, principal, READ) {
 		return DB_INSUFFICIENT_RIGHTS, ""
 	}
 	if ev, ok := db.vars[ident]; ok && ev.mode == 0 {
@@ -214,10 +223,10 @@ func (db *Database) getVarValueFor(ident, user string) (int, string) {
 }
 
 // check privileges before setting
-func (db *Database) setGlobalVarFor(ident string, val *Value, user string) int {
-	// check if variable exists && user has WRITE rights on it
+func (db *Database) setGlobalVarFor(ident string, val *Value, principal string) int {
+	// check if variable exists && principal has WRITE rights on it
 	if db.doesGlobalVarExist(ident) {
-		if db.hasUserPrivilege(ident, user, WRITE) {
+		if db.hasUserPrivilege(ident, principal, WRITE) {
 			db.vars[ident] = NewEntryVar(ident, val)
 			return DB_SUCCESS
 		} else {
@@ -227,7 +236,7 @@ func (db *Database) setGlobalVarFor(ident string, val *Value, user string) int {
 	} else {
 		// otherwise, create new w/ corresponding rights
 		db.vars[ident] = NewEntryVar(ident, val)
-		db.setDelegationAllRights(ident, "admin", user)
+		db.setDelegationAllRights(ident, USER_ADMIN, principal)
 		return DB_SUCCESS
 	}
 }
@@ -237,8 +246,8 @@ func (db *Database) doesGlobalVarExist(ident string) bool {
 	return ok
 }
 
-func (db *Database) getFieldValueFor(ident, field, user string) (int, string) {
-	if !db.hasUserPrivilege(ident, user, READ) {
+func (db *Database) getFieldValueFor(ident, field, principal string) (int, string) {
+	if !db.hasUserPrivilege(ident, principal, READ) {
 		return DB_INSUFFICIENT_RIGHTS, ""
 	}
 	if ev, ok := db.vars[ident]; ok && ev.mode == 1 {
@@ -252,18 +261,18 @@ func (db *Database) getFieldValueFor(ident, field, user string) (int, string) {
 // >>>>>>>>>>>>>>> DELEGATION ASSERTIONS >>>>>>>>>>>>>>>>>>>>>>>>>>
 
 func (db *Database) setDelegation(varName, issuer, target string, r AccessRight) int {
-	//TODO: give right `r` to that user
+	//TODO: give right `r` to that principal
 	return DB_SUCCESS
 }
 
 func (db *Database) setDelegationAllRights(varName, issuer, target string) int {
-	//TODO: give all rights to that user
+	//TODO: give all rights to that principal
 	return DB_SUCCESS
 }
 
 func (db *Database) removeDelegation(varName, issuer, target string,
 		r AccessRight) int {
-	//TODO: revoke right `r` from user
+	//TODO: revoke right `r` from principal
 	return DB_SUCCESS
 }
 
@@ -279,7 +288,7 @@ func (db *Database) removeDelegationAllVars(issuer, target string, r AccessRight
 	return DB_SUCCESS
 }
 
-func (db *Database) hasUserPrivilege(varName, user string, r AccessRight) bool {
-	// TODO: return true if user has right `r`
+func (db *Database) hasUserPrivilege(varName, principal string, r AccessRight) bool {
+	// TODO: return true if principal has right `r`
 	return true
 }

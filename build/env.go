@@ -6,7 +6,7 @@ type GlobalEnv struct {
 }
 
 type ProgramEnv struct {
-	user string
+	principal string
 	pw string
 	globals *GlobalEnv
 	results []Result

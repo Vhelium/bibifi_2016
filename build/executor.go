@@ -27,7 +27,7 @@ func (val ExprString) eval(env *ProgramEnv) (int, *Value) {
 }
 
 func (val ExprFieldAcc) eval(env *ProgramEnv) (int, *Value) {
-	s, v := env.globals.db.getFieldValueFor(val.ident, val.field, env.user)
+	s, v := env.globals.db.getFieldValueFor(val.ident, val.field, env.principal)
 	if s == DB_VAR_FOUND {
 		return DB_VAR_FOUND, &Value{mode:0, val: v}
 	}
@@ -35,7 +35,7 @@ func (val ExprFieldAcc) eval(env *ProgramEnv) (int, *Value) {
 }
 
 func (val ExprIdent) eval(env *ProgramEnv) (int, *Value) {
-	s, v := env.globals.db.getVarValueFor(val.ident, env.user)
+	s, v := env.globals.db.getVarValueFor(val.ident, env.principal)
 	if s == DB_VAR_FOUND {
 		return DB_VAR_FOUND, &Value{mode:0, val: v}
 	}
@@ -85,9 +85,9 @@ func (cmd CmdReturn) execute(env *ProgramEnv) int {
 }
 
 func (cmd CmdAsPrincipal) execute(env *ProgramEnv) int {
-	env.user = cmd.user
+	env.principal = cmd.principal
 	env.pw = cmd.pw
-	if env.globals.db.isLoginCorrect(env.user, env.pw) {
+	if env.globals.db.isLoginCorrect(env.principal, env.pw) {
 		return SUCCESS
 	} else {
 		env.results = []Result{ Result{Status: "DENIED"} }
@@ -98,7 +98,7 @@ func (cmd CmdAsPrincipal) execute(env *ProgramEnv) int {
 func (cmd CmdSet) execute(env *ProgramEnv) int {
 	s, val := cmd.expr.eval(env)
 	if s == DB_VAR_FOUND {
-		set := env.globals.db.setGlobalVarFor(cmd.ident, val, env.user)
+		set := env.globals.db.setGlobalVarFor(cmd.ident, val, env.principal)
 		if set == DB_SUCCESS {
 			env.results = append(env.results, Result{Status: "SET"})
 			return SUCCESS
@@ -120,7 +120,7 @@ func (cmd CmdCreatePr) execute(env *ProgramEnv) int {
 		env.results = []Result{ Result{Status: "FAILED"} }
 		return FAILED
 	}
-	if !env.globals.db.isUserAdmin(env.user) {
+	if !env.globals.db.isUserAdmin(env.principal) {
 		env.results = []Result{ Result{Status: "DENIED"} }
 		return DENIED
 	}
@@ -129,7 +129,21 @@ func (cmd CmdCreatePr) execute(env *ProgramEnv) int {
 	return SUCCESS
 }
 
-func (cmd CmdChangePw) execute(env *ProgramEnv) int { /* TODO */ return SUCCESS }
+func (cmd CmdChangePw) execute(env *ProgramEnv) int {
+	if !env.globals.db.doesUserExist(cmd.principal) {
+		env.results = []Result{ Result{Status: "FAILED"} }
+		return FAILED
+	}
+	if env.globals.db.isUserAdmin(env.principal) || env.principal == cmd.principal {
+		env.globals.db.changePassword(cmd.principal, cmd.pw)
+		env.results = append(env.results, Result{Status: "CHANGE_PASSWORD"})
+		return SUCCESS
+	} else {
+		env.results = []Result{ Result{Status: "DENIED"} }
+		return DENIED
+	}
+}
+
 func (cmd CmdAppend) execute(env *ProgramEnv) int { /* TODO */ return SUCCESS }
 func (cmd CmdLocal) execute(env *ProgramEnv) int { /* TODO */ return SUCCESS }
 func (cmd CmdForeach) execute(env *ProgramEnv) int { /* TODO */ return SUCCESS }

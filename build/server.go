@@ -40,7 +40,7 @@ func main() {
 	}
 
 	log.Printf("Starting server on port %s w/ password %s", port, password)
-	// add admin user to db
+	// add admin principal to db
 	globals.db.addUser("admin", password)
 
 	ln, err := net.Listen("tcp", ":"+port)

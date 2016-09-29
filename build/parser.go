@@ -31,7 +31,7 @@ type CmdExit struct {
 }
 
 type CmdAsPrincipal struct {
-	user string
+	principal string
 	pw string
 }
 
@@ -45,7 +45,11 @@ type CmdCreatePr struct {
 	pw string
 }
 
-type CmdChangePw struct { /*TODO*/ }
+type CmdChangePw struct {
+	principal string
+	pw string
+}
+
 type CmdAppend struct { /*TODO*/ }
 type CmdLocal struct { /*TODO*/ }
 type CmdForeach struct { /*TODO*/ }
@@ -165,13 +169,13 @@ func (p *Parser) parseCmdAsPrincipal(t *Tokenizer) (int, Cmd) {
 		return 2, nil
 	}
 
-	// read user
-	tok, user := t.Scan()
+	// read principal
+	tok, pr := t.Scan()
 	if tok != IDENT {
 		parseError("expected IDENT in CmdAsPr")
 		return 2, nil
 	}
-	cmd.user = user
+	cmd.principal = pr
 
 	// password token
 	if tok, _ := t.Scan(); tok != KV_PASSWORD {
@@ -300,7 +304,7 @@ func(p *Parser) parseCmdCreatePr(t *Tokenizer) (int, Cmd) {
 		return 2, nil
 	}
 
-	// get user
+	// get principal
 	tok, pr := t.Scan()
 	if tok != IDENT {
 		parseError("expected IDENT in CmdCreatePr")
@@ -320,8 +324,31 @@ func(p *Parser) parseCmdCreatePr(t *Tokenizer) (int, Cmd) {
 }
 
 func(p *Parser) parseCmdChangePw(t *Tokenizer) (int, Cmd) {
-	 //TODO
-	 return 0, CmdChangePw{}
+	cmd := CmdChangePw{}
+
+	// read PW token
+	if tok, _ := t.Scan(); tok != KV_PASSWORD {
+		parseError("expected PW in CmdChangePw")
+		return 2, nil
+	}
+
+	// get principal
+	tok, pr := t.Scan()
+	if tok != IDENT {
+		parseError("expected IDENT in CmdChangePw")
+		return 2, nil
+	}
+	cmd.principal = pr
+
+	// get pw
+	tok, pw := t.Scan()
+	if tok != STRING {
+		parseError("expected STRING in CmdChangePw")
+		return 2, nil
+	}
+	cmd.pw = pw
+
+	return 0, cmd
 }
 
 func(p *Parser) parseCmdAppend(t *Tokenizer) (int, Cmd) {
