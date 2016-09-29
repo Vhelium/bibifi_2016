@@ -1,5 +1,11 @@
 as principal admin password "admin" do
-   local x = "localX"
-   set y = x
-   exit
+   set x = []
+   set y = "top"
+   append to x with y
+   append to x with "kek"
+   set y = []
+   set t = { name = "vhelium", age = "20" }
+   append to y with t
+   append to x with y
+   return x
 ***

@@ -55,7 +55,10 @@ type CmdLocal struct {
 	expr Expr
 }
 
-type CmdAppend struct { /*TODO*/ }
+type CmdAppend struct {
+	ident string
+	expr Expr
+}
 type CmdForeach struct { /*TODO*/ }
 type CmdSetDeleg struct { /*TODO*/ }
 type CmdDeleteDeleg struct { /*TODO*/ }
@@ -384,8 +387,32 @@ func(p *Parser) parseCmdLocal(t *Tokenizer) (int, Cmd) {
 }
 
 func(p *Parser) parseCmdAppend(t *Tokenizer) (int, Cmd) {
-	 //TODO
-	 return 0, CmdAppend{}
+	// read to token
+	if tok, _ := t.Scan(); tok != KV_TO {
+		parseError("expected TO in CmdAppend")
+		return 2, nil
+	}
+
+	// get identifier
+	tok, ident := t.Scan()
+	if tok != IDENT {
+		parseError("expected IDENT in CmdAppend")
+		return 2, nil
+	}
+
+	// read WITH token
+	if tok, _ := t.Scan(); tok != KV_WITH{
+		parseError("expected WITH in CmdAppend")
+		return 2, nil
+	}
+
+	// get expression
+	s, expr := p.parseExpr(t)
+	if s == 0 {
+		return 0, CmdAppend{ident: ident, expr: expr}
+	}
+	parseError("invalid CmdAppend")
+	return 2, nil
 }
 
 func(p *Parser) parseCmdForeach(t *Tokenizer) (int, Cmd) {

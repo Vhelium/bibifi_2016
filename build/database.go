@@ -232,14 +232,15 @@ func (db *Database) isUserAdmin(name string) bool {
 	return name == USER_ADMIN
 }
 
-func (env *ProgramEnv) getVarValueFor(ident, principal string) (int, *Value) {
+func (env *ProgramEnv) getVarValueForWith(ident, principal string,
+		rs... AccessRight) (int, *Value) {
 	// check locals
 	if env.doesLocalVarExist(ident) {
 		return DB_VAR_FOUND, NewValue(env.getLocalVar(ident))
 	}
 
 	// check globals
-	if !env.globals.db.hasUserPrivilege(ident, principal, READ) {
+	if !env.globals.db.hasUserPrivilegeAtLeastOne(ident, principal, rs...) {
 		return DB_INSUFFICIENT_RIGHTS, nil
 	}
 	if ev, ok := env.globals.db.vars[ident]; ok {
@@ -252,6 +253,7 @@ func (env *ProgramEnv) getLocalVar(ident string) *EntryVar {
 	return env.locals[ident]
 }
 
+// creates a new local variable (w/ LOCAL command)
 func (env *ProgramEnv) setLocalVar(ident string, val *Value) int {
 	// check if variable already exists (global/locals)
 	if env.globals.db.doesGlobalVarExist(ident) ||
@@ -267,11 +269,17 @@ func (env *ProgramEnv) doesLocalVarExist(ident string) bool {
 	return ok
 }
 
-// check privileges before setting
-func (db *Database) setGlobalVarFor(ident string, val *Value, principal string) int {
-	// check if variable exists && principal has WRITE rights on it
+func (env *ProgramEnv) setVarForWith(ident string, val *Value, principal string,
+		rs... AccessRight) int {
+	db := env.globals.db
+	// check locals
+	if env.doesLocalVarExist(ident) {
+		env.locals[ident] = NewEntryVar(ident, val)
+		return DB_SUCCESS
+	}
+	// check if variable exists && principal has `rs` rights on it
 	if db.doesGlobalVarExist(ident) {
-		if db.hasUserPrivilege(ident, principal, WRITE) {
+		if db.hasUserPrivilegeAtLeastOne(ident, principal, rs...) {
 			db.vars[ident] = NewEntryVar(ident, val)
 			return DB_SUCCESS
 		} else {
@@ -291,8 +299,10 @@ func (db *Database) doesGlobalVarExist(ident string) bool {
 	return ok
 }
 
-func (db *Database) getFieldValueFor(ident, field, principal string) (int, string) {
-	if !db.hasUserPrivilege(ident, principal, READ) {
+func (env *ProgramEnv) getFieldValueForWith(ident, field, principal string,
+		rs... AccessRight) (int, string) {
+	db := env.globals.db
+	if !db.hasUserPrivilegeAtLeastOne(ident, principal, rs...) {
 		return DB_INSUFFICIENT_RIGHTS, ""
 	}
 	if ev, ok := db.vars[ident]; ok && ev.mode == 1 {
@@ -301,6 +311,38 @@ func (db *Database) getFieldValueFor(ident, field, principal string) (int, strin
 		}
 	}
 	return DB_VAR_NOT_FOUND, ""
+}
+
+// ident must be an existing list w/ needed rights(write, append)
+func (env *ProgramEnv) appendVarToListFor(ident string, val *Value, pr string) int {
+	if val.mode != VAR_MODE_SINGLE && val.mode != VAR_MODE_RECORD {
+		return DB_VAR_NOT_FOUND
+	}
+	s, l := env.getVarValueForWith(ident, pr)
+	if s == DB_VAR_FOUND {
+		l.list = append(l.list, val)
+		env.setVarForWith(ident, l, pr) // we already know we have the rights
+		return DB_SUCCESS
+	} else {
+		return s
+	}
+}
+
+// ident must be an existing list w/ needed rights(write, append)
+func (env *ProgramEnv) concatListToListFor(ident string, val *Value, pr string) int {
+	if val.mode != VAR_MODE_LIST {
+		return DB_VAR_NOT_FOUND
+	}
+	s, l := env.getVarValueForWith(ident, pr)
+	if s == DB_VAR_FOUND {
+		for _, item := range val.list {
+			l.list = append(l.list, item)
+		}
+		env.setVarForWith(ident, l, pr)
+		return DB_SUCCESS
+	} else {
+		return s
+	}
 }
 
 // >>>>>>>>>>>>>>> DELEGATION ASSERTIONS >>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -335,5 +377,11 @@ func (db *Database) removeDelegationAllVars(issuer, target string, r AccessRight
 
 func (db *Database) hasUserPrivilege(varName, principal string, r AccessRight) bool {
 	// TODO: return true if principal has right `r`
+	return true
+}
+
+func (db *Database) hasUserPrivilegeAtLeastOne(varName, principal string,
+		rs... AccessRight) bool {
+	//TODO: return true if principal has at least one of the rights in `rs`
 	return true
 }
