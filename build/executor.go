@@ -195,7 +195,48 @@ func (cmd CmdAppend) execute(env *ProgramEnv) int {
 	}
 }
 
-func (cmd CmdForeach) execute(env *ProgramEnv) int { /* TODO */ return SUCCESS }
+func (cmd CmdForeach) execute(env *ProgramEnv) int {
+	// check if local var already exists
+	if env.doesVarExist(cmd.identE) {
+		env.results = []Result{ Result{Status: "FAILED"} }
+		return FAILED
+	}
+	// get list with r/w permission
+	sl, l := env.getVarValueForWith(cmd.identL, env.principal, READ, WRITE)
+	if sl == DB_VAR_FOUND && l.mode == VAR_MODE_LIST {
+		// create new list var
+		newList := &Value{mode: VAR_MODE_LIST, list: make([]*Value, 0)}
+		// loop all list entries
+		for _, item := range l.list {
+			// create tmp local variable (we know it won't fail)
+			env.setLocalVar(cmd.identE, item)
+			// evaluate expr
+			si, expr := cmd.expr.eval(env)
+			if si == DB_VAR_FOUND {
+				// apply expr on local var && append to list
+				newList.list = append(newList.list, expr)
+			} else if si == DB_INSUFFICIENT_RIGHTS {
+				env.results = []Result{ Result{Status: "DENIED"} }
+				return DENIED
+			} else {
+				env.results = []Result{ Result{Status: "FAILED"} }
+				return FAILED
+			}
+			// discard tmp local variable
+			env.discardLocalVar(cmd.identE)
+		}
+		// write new list in old location
+		env.setVarForWith(cmd.identL, newList, env.principal) // must succeed
+		return SUCCESS
+	} else if sl == DB_INSUFFICIENT_RIGHTS {
+		env.results = []Result{ Result{Status: "DENIED"} }
+		return DENIED
+	} else {
+		env.results = []Result{ Result{Status: "FAILED"} }
+		return FAILED
+	}
+}
+
 func (cmd CmdSetDeleg) execute(env *ProgramEnv) int { /* TODO */ return SUCCESS }
 func (cmd CmdDeleteDeleg) execute(env *ProgramEnv) int { /* TODO */ return SUCCESS }
 func (cmd CmdDefaultDeleg) execute(env *ProgramEnv) int { /* TODO */ return SUCCESS }

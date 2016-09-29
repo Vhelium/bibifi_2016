@@ -59,7 +59,11 @@ type CmdAppend struct {
 	ident string
 	expr Expr
 }
-type CmdForeach struct { /*TODO*/ }
+type CmdForeach struct {
+	identE string
+	identL string
+	expr Expr
+}
 type CmdSetDeleg struct { /*TODO*/ }
 type CmdDeleteDeleg struct { /*TODO*/ }
 type CmdDefaultDeleg struct { /*TODO*/ }
@@ -416,8 +420,39 @@ func(p *Parser) parseCmdAppend(t *Tokenizer) (int, Cmd) {
 }
 
 func(p *Parser) parseCmdForeach(t *Tokenizer) (int, Cmd) {
-	 //TODO
-	 return 0, CmdForeach{}
+	// get identifier
+	tok, identE := t.Scan()
+	if tok != IDENT {
+		parseError("expected IDENT-E in CmdForeach")
+		return 2, nil
+	}
+
+	// read IN token
+	if tok, _ := t.Scan(); tok != KV_IN {
+		parseError("expected WITH in CmdForeach")
+		return 2, nil
+	}
+
+	// get identifier
+	tok, identL := t.Scan()
+	if tok != IDENT {
+		parseError("expected IDENT-L in CmdForeach")
+		return 2, nil
+	}
+
+	// read REPLACEWITH token
+	if tok, _ := t.Scan(); tok != KV_REPLACEWITH {
+		parseError("expected RPW in CmdForeach")
+		return 2, nil
+	}
+
+	// get expression
+	s, expr := p.parseExpr(t)
+	if s == 0 {
+		return 0, CmdForeach{identL: identL, identE: identE, expr: expr}
+	}
+	parseError("invalid CmdForeach")
+	return 2, nil
 }
 
 func(p *Parser) parseCmdSetDeleg(t *Tokenizer) (int, Cmd) {

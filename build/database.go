@@ -256,7 +256,7 @@ func (env *ProgramEnv) getLocalVar(ident string) *EntryVar {
 // creates a new local variable (w/ LOCAL command)
 func (env *ProgramEnv) setLocalVar(ident string, val *Value) int {
 	// check if variable already exists (global/locals)
-	if env.globals.db.doesGlobalVarExist(ident) ||
+	if env.doesGlobalVarExist(ident) ||
 			env.doesLocalVarExist(ident) {
 		return DB_VAR_NOT_FOUND
 	}
@@ -264,9 +264,17 @@ func (env *ProgramEnv) setLocalVar(ident string, val *Value) int {
 	return DB_SUCCESS
 }
 
+func (env *ProgramEnv) discardLocalVar(ident string) {
+	delete(env.locals, ident)
+}
+
 func (env *ProgramEnv) doesLocalVarExist(ident string) bool {
 	_, ok := env.locals[ident]
 	return ok
+}
+
+func (env *ProgramEnv) doesVarExist(ident string) bool {
+	return env.doesLocalVarExist(ident) || env.doesGlobalVarExist(ident)
 }
 
 func (env *ProgramEnv) setVarForWith(ident string, val *Value, principal string,
@@ -278,7 +286,7 @@ func (env *ProgramEnv) setVarForWith(ident string, val *Value, principal string,
 		return DB_SUCCESS
 	}
 	// check if variable exists && principal has `rs` rights on it
-	if db.doesGlobalVarExist(ident) {
+	if env.doesGlobalVarExist(ident) {
 		if db.hasUserPrivilegeAtLeastOne(ident, principal, rs...) {
 			db.vars[ident] = NewEntryVar(ident, val)
 			return DB_SUCCESS
@@ -294,8 +302,8 @@ func (env *ProgramEnv) setVarForWith(ident string, val *Value, principal string,
 	}
 }
 
-func (db *Database) doesGlobalVarExist(ident string) bool {
-	_, ok := db.vars[ident]
+func (env *ProgramEnv) doesGlobalVarExist(ident string) bool {
+	_, ok := env.globals.db.vars[ident]
 	return ok
 }
 
@@ -305,7 +313,15 @@ func (env *ProgramEnv) getFieldValueForWith(ident, field, principal string,
 	if !db.hasUserPrivilegeAtLeastOne(ident, principal, rs...) {
 		return DB_INSUFFICIENT_RIGHTS, ""
 	}
-	if ev, ok := db.vars[ident]; ok && ev.mode == 1 {
+	var ev *EntryVar
+	var ok bool
+	if env.doesLocalVarExist(ident) {
+		ev = env.getLocalVar(ident)
+		ok = true
+	} else {
+		ev, ok = db.vars[ident]
+	}
+	if ok && ev.mode == 1 {
 		if f, ok := ev.fieldValues[field]; ok {
 			return DB_VAR_FOUND, f
 		}
