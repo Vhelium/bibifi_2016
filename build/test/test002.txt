@@ -1,8 +1,10 @@
-as principal admin password "admin" do
+as principal alice password "alices_password" do
    set records = []
    append to records with { name = "mike", date = "1-1-90" } 
    append to records with { name = "dave", date = "1-1-85" }
    local names = records
    foreach rec in names replacewith rec.name
+   set p = {a="top", b="kek"}
+   append to names with p
    return names
 ***

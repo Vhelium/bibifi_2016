@@ -12,7 +12,7 @@ const (
 
 type Result struct {
 	Status string		`json:"status"`
-	Output string		`json:"output,omitempty"`
+	Output interface{}	`json:"output,omitempty"`
 }
 
 type Value struct {
@@ -21,6 +21,20 @@ type Value struct {
 	vals map[string]string
 	list []*Value
 }
+
+func formatOutput(v *Value) interface{} {
+	if v.mode == 0 {
+		return v.val
+	} else if v.mode == VAR_MODE_RECORD {
+		return v.vals
+	} else {
+		list := make([]interface{},0)
+		for _,l := range v.list {
+			item := formatOutput(l)
+			list = append(list, item)
+		}
+		return list
+	}}
 
 func (val ExprString) eval(env *ProgramEnv) (int, *Value) {
 	return DB_VAR_FOUND, &Value{mode:0, val: val.val}
@@ -79,7 +93,7 @@ func (cmd CmdReturn) execute(env *ProgramEnv) int {
 	_, o := cmd.expr.eval(env)
 	env.results = append(env.results, Result{
 		Status: "RETURNING",
-		Output: printValue(NewEntryVar("", o)) , //TODO: right format
+		Output: formatOutput(o),
 	})
 	return TERMINATED
 }
