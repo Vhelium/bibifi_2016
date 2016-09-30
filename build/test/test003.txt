@@ -2,6 +2,6 @@ as principal admin password "admin" do
     set x = {a="abc", b="def"}
     set y = "kek"
     set z = x.b
-    set i = o
+    set o = i
     return z
 ***

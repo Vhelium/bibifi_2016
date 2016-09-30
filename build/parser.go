@@ -3,6 +3,7 @@ package main
 import (
 	"strings"
 	"fmt"
+	"strconv"
 )
 
 type Parser struct {
@@ -58,15 +59,31 @@ type CmdLocal struct {
 type CmdAppend struct {
 	ident string
 	expr Expr
+
 }
 type CmdForeach struct {
 	identE string
 	identL string
 	expr Expr
 }
-type CmdSetDeleg struct { /*TODO*/ }
-type CmdDeleteDeleg struct { /*TODO*/ }
-type CmdDefaultDeleg struct { /*TODO*/ }
+
+type CmdSetDeleg struct {
+	tgt string
+	q string
+	right AccessRight
+	p string
+}
+
+type CmdDeleteDeleg struct {
+	tgt string
+	q string
+	right AccessRight
+	p string
+}
+
+type CmdDefaultDeleg struct {
+	p string
+}
 
 type Expr interface {
 	// []
@@ -455,19 +472,114 @@ func(p *Parser) parseCmdForeach(t *Tokenizer) (int, Cmd) {
 	return 2, nil
 }
 
-func(p *Parser) parseCmdSetDeleg(t *Tokenizer) (int, Cmd) {
-	 //TODO
-	 // SET and DELEGATION tokens have already been read by now!!
-	 // next: read IDENT token for 'x'
-	 return 0, CmdSetDeleg{}
+func(*Parser) parseCmdSetDeleg(t *Tokenizer) (int, Cmd) {
+	// get identifier
+	tok, tgt := t.Scan()
+	if tok != IDENT {
+		parseError("expected IDENT-tgt in CmdSetDeleg")
+		return 2, nil
+	}
+
+	// get identifier
+	tok, q := t.Scan()
+	if tok != IDENT {
+		parseError("expected IDENT-q in CmdSetDeleg")
+		return 2, nil
+	}
+
+	// get identifier
+	tok, right := t.Scan()
+	if tok != KV_READ && tok != KV_WRITE && tok != KV_DELEGATE && tok != KV_APPEND {
+		parseError("expected IDENT-right in CmdSetDeleg")
+		return 2, nil
+	}
+
+	// read -> token
+	if tok, _ := t.Scan(); tok != ARROW {
+		parseError("expected ARROW in CmdSetDeleg")
+		return 2, nil
+	}
+
+	// get identifier
+	tok, p := t.Scan()
+	if tok != IDENT {
+		parseError("expected IDENT-L in CmdSetDeleg")
+		return 2, nil
+	}
+
+	r, err := strconv.Atoi(right)
+	if err != nil {
+		parseError("invalid right in CmdSetDeleg")
+	}
+	return 0, CmdSetDeleg{tgt, q, AccessRight(r), p}
 }
 
-func(p *Parser) parseCmdDeleteDeleg(t *Tokenizer) (int, Cmd) {
-	 //TODO
-	 return 0, CmdDeleteDeleg{}
+func(*Parser) parseCmdDeleteDeleg(t *Tokenizer) (int, Cmd) {
+	// read delegation token
+	if tok, _ := t.Scan(); tok != KV_DELEGATION {
+		parseError("expected ARROW in CmdDelDeleg")
+		return 2, nil
+	}
+
+	// get identifier
+	tok, tgt := t.Scan()
+	if tok != IDENT {
+		parseError("expected IDENT-tgt in CmdDelDeleg")
+		return 2, nil
+	}
+
+	// get identifier
+	tok, q := t.Scan()
+	if tok != IDENT {
+		parseError("expected IDENT-q in CmdDelDeleg")
+		return 2, nil
+	}
+
+	// get identifier
+	tok, right := t.Scan()
+	if tok != KV_READ && tok != KV_WRITE && tok != KV_DELEGATE && tok != KV_APPEND {
+		parseError("expected IDENT-right in CmdDelDeleg")
+		return 2, nil
+	}
+
+	// read -> token
+	if tok, _ := t.Scan(); tok != ARROW {
+		parseError("expected ARROW in CmdDelDeleg")
+		return 2, nil
+	}
+
+	// get identifier
+	tok, p := t.Scan()
+	if tok != IDENT {
+		parseError("expected IDENT-L in CmdDeleteDeleg")
+		return 2, nil
+	}
+
+	r, err := strconv.Atoi(right)
+	if err != nil {
+		parseError("invalid right in CmdDeleteDeleg")
+	}
+	return 0, CmdDeleteDeleg{tgt, q, AccessRight(r), p}
 }
 
-func(p *Parser) parseCmdDefaultDeleg(t *Tokenizer) (int, Cmd) {
-	 //TODO
-	 return 0, CmdDefaultDeleg{}
+func(*Parser) parseCmdDefaultDeleg(t *Tokenizer) (int, Cmd) {
+	// read deleg token
+	if tok, _ := t.Scan(); tok != KV_DELEGATOR {
+		parseError("expected deleg in CmdDefDeleg")
+		return 2, nil
+	}
+
+	// read EQ token
+	if tok, _ := t.Scan(); tok != EQUAL {
+		parseError("expected deleg in CmdDefDeleg")
+		return 2, nil
+	}
+
+	// get identifier
+	tok, p := t.Scan()
+	if tok != IDENT {
+		parseError("expected IDENT in CmdDefDeleg")
+		return 2, nil
+	}
+	return 0, CmdDefaultDeleg{p}
 }

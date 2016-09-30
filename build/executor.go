@@ -116,7 +116,7 @@ func (cmd CmdSet) execute(env *ProgramEnv) int {
 }
 
 func (cmd CmdCreatePr) execute(env *ProgramEnv) int {
-	if env.globals.db.doesUserExist(cmd.principal) {
+	if env.doesUserExist(cmd.principal) {
 		env.results = []Result{ Result{Status: "FAILED"} }
 		return FAILED
 	}
@@ -130,7 +130,7 @@ func (cmd CmdCreatePr) execute(env *ProgramEnv) int {
 }
 
 func (cmd CmdChangePw) execute(env *ProgramEnv) int {
-	if !env.globals.db.doesUserExist(cmd.principal) {
+	if !env.doesUserExist(cmd.principal) {
 		env.results = []Result{ Result{Status: "FAILED"} }
 		return FAILED
 	}
@@ -227,6 +227,7 @@ func (cmd CmdForeach) execute(env *ProgramEnv) int {
 		}
 		// write new list in old location
 		env.setVarForWith(cmd.identL, newList, env.principal) // must succeed
+		env.results = append(env.results, Result{Status: "FOREACH"})
 		return SUCCESS
 	} else if sl == DB_INSUFFICIENT_RIGHTS {
 		env.results = []Result{ Result{Status: "DENIED"} }
@@ -237,8 +238,53 @@ func (cmd CmdForeach) execute(env *ProgramEnv) int {
 	}
 }
 
-func (cmd CmdSetDeleg) execute(env *ProgramEnv) int { /* TODO */ return SUCCESS }
-func (cmd CmdDeleteDeleg) execute(env *ProgramEnv) int { /* TODO */ return SUCCESS }
-func (cmd CmdDefaultDeleg) execute(env *ProgramEnv) int { /* TODO */ return SUCCESS }
+func (cmd CmdSetDeleg) execute(env *ProgramEnv) int {
+	if !env.doesUserExist(cmd.q) || !env.doesUserExist(cmd.q) {
+		env.results = []Result{ Result{Status: "FAILED"} }
+		return FAILED
+	}
+	s := env.globals.db.setDelegation(cmd.tgt, cmd.q, cmd.p, cmd.right)
+	switch s {
+	case DB_SUCCESS:
+		env.results = append(env.results, Result{Status: "SET_DELEGATION"})
+		return SUCCESS
+	case DB_INSUFFICIENT_RIGHTS:
+		env.results = []Result{ Result{Status: "DENIED"} }
+		return DENIED
+	default:
+		env.results = []Result{ Result{Status: "FAILED"} }
+		return FAILED
+	}
+}
+func (cmd CmdDeleteDeleg) execute(env *ProgramEnv) int {
+	if !env.doesUserExist(cmd.q) || !env.doesUserExist(cmd.q) {
+		env.results = []Result{ Result{Status: "FAILED"} }
+		return FAILED
+	}
+	s := env.globals.db.deleteDelegation(cmd.tgt, cmd.q, cmd.p, cmd.right)
+	switch s {
+	case DB_SUCCESS:
+		env.results = append(env.results, Result{Status: "SET_DELEGATION"})
+		return SUCCESS
+	case DB_INSUFFICIENT_RIGHTS:
+		env.results = []Result{ Result{Status: "DENIED"} }
+		return DENIED
+	default:
+		env.results = []Result{ Result{Status: "FAILED"} }
+		return FAILED
+	}
+}
+
+func (cmd CmdDefaultDeleg) execute(env *ProgramEnv) int {
+	if !env.doesUserExist(cmd.p) {
+		env.results = []Result{ Result{Status: "FAILED"} }
+		return FAILED
+	} else if !env.globals.db.isUserAdmin(env.principal) {
+		env.results = []Result{ Result{Status: "DENIED"} }
+		return DENIED
+	}
+	env.globals.db.setDefaultDelegator(cmd.p)
+	return SUCCESS
+}
 
 // to fail, just assign: env.results := []Result{ Result{"status":"DENIED"} }

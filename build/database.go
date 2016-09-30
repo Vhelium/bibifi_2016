@@ -31,6 +31,7 @@ const (
 )
 
 type Database struct {
+	defaultDelegator string
 	principals map[string]*EntryUser // 1:1
 	delegations map[string][]*EntryDelegation // 1:N
 	vars map[string]*EntryVar // 1:1
@@ -61,6 +62,7 @@ type EntryVar struct {
 
 func NewDatabase() *Database {
 	return &Database{
+		defaultDelegator: USER_ANYONE,
 		principals: make(map[string]*EntryUser, 0),
 		delegations: make(map[string][]*EntryDelegation, 0),
 		vars: make(map[string]*EntryVar, 0),
@@ -81,15 +83,14 @@ func SnapshotDatabase(env *GlobalEnv) {
 	}
 	for k,v := range env.db.vars {
 		var fv map[string]string
-		var l []*EntryVar
+		var lst []*EntryVar
 		if v.mode == VAR_MODE_RECORD {
 			fv = make(map[string]string, len(v.fieldValues))
 			for fk, f := range v.fieldValues {
 				fv[fk] = f
 			}
 		} else if v.mode == VAR_MODE_LIST {
-			// TODO: test this^^
-			lst := make([]*EntryVar, len(v.list))
+			lst = make([]*EntryVar, len(v.list))
 			for i, l := range v.list {
 				if l.mode == VAR_MODE_RECORD {
 					fv = make(map[string]string, len(l.fieldValues))
@@ -105,9 +106,9 @@ func SnapshotDatabase(env *GlobalEnv) {
 				}
 			}
 		}
-		vars[k] = &EntryVar{v.name, v.mode, v.value, fv, l}
+		vars[k] = &EntryVar{v.name, v.mode, v.value, fv, lst}
 	}
-	env.dbSnapshot = &Database{principals, delegations, vars}
+	env.dbSnapshot = &Database{env.db.defaultDelegator, principals, delegations, vars}
 }
 
 func RollbackDatabase(env *GlobalEnv) {
@@ -223,8 +224,8 @@ func (db *Database) changePassword(name, pw string) {
 	db.principals[name].pw = pw
 }
 
-func (db *Database) doesUserExist(name string) bool {
-	_, ok := db.principals[name]
+func (env *ProgramEnv) doesUserExist(name string) bool {
+	_, ok := env.globals.db.principals[name]
 	return ok
 }
 
@@ -363,6 +364,11 @@ func (env *ProgramEnv) concatListToListFor(ident string, val *Value, pr string) 
 
 // >>>>>>>>>>>>>>> DELEGATION ASSERTIONS >>>>>>>>>>>>>>>>>>>>>>>>>>
 
+func (db *Database) setDefaultDelegator(target string) {
+	// rights have to be checked by caller.
+	db.defaultDelegator = target
+}
+
 func (db *Database) setDelegation(varName, issuer, target string, r AccessRight) int {
 	//TODO: give right `r` to that principal
 	return DB_SUCCESS
@@ -373,7 +379,7 @@ func (db *Database) setDelegationAllRights(varName, issuer, target string) int {
 	return DB_SUCCESS
 }
 
-func (db *Database) removeDelegation(varName, issuer, target string,
+func (db *Database) deleteDelegation(varName, issuer, target string,
 		r AccessRight) int {
 	//TODO: revoke right `r` from principal
 	return DB_SUCCESS
