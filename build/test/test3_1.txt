@@ -1,0 +1,13 @@
+as principal admin password "admin" do
+  set records = []
+  append to records with { dude= "yes" }
+  append to records with "no"
+  set var = "a variable"
+  return var
+***
+
+// {"status": "SET"}
+// {"status": "APPEND"}
+// {"status": "APPEND"}
+// {"status": "SET"}
+// {"status": "RETURNING", "output": "a variable"}

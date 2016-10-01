@@ -1,0 +1,11 @@
+as principal admin password "admin" do
+  set x = { f="alice", g="bob" }
+  set y = "another string"
+  set z = { f=x.f, g=y, h=x.g, i="constant" }
+  return z
+***
+
+// {"status": "SET"}
+// {"status": "SET"}
+// {"status": "SET"}
+// {"status": "RETURNING", "output": {"i": "constant", "h": "bob", "g": "another string", "f": "alice"}}

@@ -1,0 +1,7 @@
+as principal admin password "admin" do
+  append to records with var
+  return records
+***
+
+// {"status": "APPEND"}
+// {"status": "RETURNING", "output": [{"dude": "yes"}, "no", "a variable"]}
