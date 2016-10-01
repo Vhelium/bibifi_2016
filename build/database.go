@@ -310,7 +310,6 @@ func (env *ProgramEnv) setVarForWith(ident string, val *Value, principal string,
 	} else {
 		// otherwise, create new w/ corresponding rights
 		db.vars[ident] = NewEntryVar(ident, val)
-		fmt.Printf("set all rights\n")
 		env.setDelegationAllRights(ident, principal, principal)
 		return DB_SUCCESS
 	}
@@ -399,8 +398,6 @@ func (env *ProgramEnv) getDelegationIndex(varName, issuer, target string,
 func (env *ProgramEnv) setDelegation(varName, issuer, target string,
 		r AccessRight) int {
 	db := env.globals.db
-
-	fmt.Printf("setting deleg: %s, %s, %s, %d\n", varName, issuer, target, r)
 
 	if env.globals.db.isUserAdmin(target) {
 		return DB_SUCCESS
