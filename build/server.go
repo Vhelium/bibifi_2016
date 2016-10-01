@@ -71,7 +71,8 @@ func main() {
 			bufCmd = append(bufCmd, bufRcv[:llen]...)
 
 			if tlen >= 3 && (string(bufCmd[tlen-3:tlen]) ==  "***" ||
-					string(bufCmd[tlen-4:tlen]) ==  "***\n") {
+					string(bufCmd[tlen-4:tlen]) ==  "***\n") ||
+					lineContainsTermination(string(bufCmd)) {
 				fmt.Printf(string(bufCmd))
 				fmt.Printf(">>>>>>>>>>>> Program End >>>>>>>>>>>>\n")
 
@@ -83,6 +84,16 @@ func main() {
 			}
 		}
 	}
+}
+
+func lineContainsTermination(p string) bool {
+	lines := strings.Split(p, "\n")
+	for _, l := range lines {
+		if strings.HasPrefix(strings.TrimSpace(l) , "***") {
+			return true
+		}
+	}
+	return false
 }
 
 func executeProgram(p string) string {
