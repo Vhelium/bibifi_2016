@@ -1,0 +1,6 @@
+as principal admin password "admin" do
+  set z = { f="hi", g="there" }
+  return z.h
+***
+
+// {"status": "FAILED"}
