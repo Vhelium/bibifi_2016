@@ -1,6 +1,6 @@
 as principal admin password "admin" do
-   create principal alice "alices_password"
+   create principal alice "alices_password" // test comment
    set msg = "Hi Alice. Good luck in Build-it, Break-it, Fix-it!"
-   set delegation msg admin read -> alice
+   set delegation msg admin read -> alice // weeeew lad "this" is \top/ kek
    return "success"
 ***

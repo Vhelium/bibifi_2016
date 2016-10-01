@@ -28,6 +28,7 @@ const (
 	ARROW			// ->
 	BRACKET_OPEN	// {
 	BRACKET_CLOSE	// }
+	COMMENT			// //
 
 	// Specific Keywords
 	KV_TERMINATE
@@ -155,6 +156,12 @@ func (t *Tokenizer) Scan() (tok Token, lit string) {
 		}
 	case '"':
 		return t.scanString()
+	case '/':
+		if t.read() == '/' {
+			return t.scanComment()
+		} else {
+			return ILLEGAL, ""
+		}
 	}
 
 	return ILLEGAL, string(ch)
@@ -269,6 +276,17 @@ func (t *Tokenizer) scanString() (tok Token, lit string) {
 		}
 	}
 	return ILLEGAL, ""
+}
+
+func (t *Tokenizer) scanComment() (tok Token, lit string) {
+	var buf bytes.Buffer
+	for {
+		if ch := t.read(); ch == eof {
+			return COMMENT, buf.String()
+		} else {
+			_, _ = buf.WriteRune(ch)
+		}
+	}
 }
 
 func isWhitespace(ch rune) bool {

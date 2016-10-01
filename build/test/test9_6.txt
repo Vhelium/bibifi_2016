@@ -1,0 +1,8 @@
+as principal charlie password "charlie" do
+  append to y with "charlies"
+  append to y with x
+  return y
+***
+//{"status": "APPEND"}
+//{"status": "APPEND"}
+//{"status": "RETURNING", "output": [{"y": "10", "x": "10"}, {"y": "100", "x": "0"}, "charlies", "x"]}
