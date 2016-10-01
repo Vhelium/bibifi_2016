@@ -12,29 +12,30 @@ const (
 )
 
 const (
-	USER_ADMIN string = "admin"
+	USER_ADMIN  string = "admin"
 	USER_ANYONE string = "anyone"
 )
 
 const (
 	VAR_MODE_SINGLE int = 0
 	VAR_MODE_RECORD int = 1
-	VAR_MODE_LIST int = 2
+	VAR_MODE_LIST   int = 2
 )
 
 type AccessRight byte
+
 const (
-	READ AccessRight = 1
-	WRITE AccessRight = 2
-	APPEND AccessRight = 4
+	READ     AccessRight = 1
+	WRITE    AccessRight = 2
+	APPEND   AccessRight = 4
 	DELEGATE AccessRight = 8
 )
 
 type Database struct {
 	defaultDelegator string
-	principals map[string]*EntryUser // 1:1
-	delegations map[string][]*EntryDelegation // 1:N
-	vars map[string]*EntryVar // 1:1
+	principals       map[string]*EntryUser         // 1:1
+	delegations      map[string][]*EntryDelegation // 1:N
+	vars             map[string]*EntryVar          // 1:1
 }
 
 type EntryUser struct {
@@ -47,25 +48,25 @@ type EntryDelegation struct {
 	targetName string // KEY
 
 	issuerName string
-	varName string
-	right AccessRight
+	varName    string
+	right      AccessRight
 }
 
 type EntryVar struct {
 	name string // KEY
 
-	mode int // 0 = direct, 1 = fields
-	value string // direct assignment
+	mode        int               // 0 = direct, 1 = fields
+	value       string            // direct assignment
 	fieldValues map[string]string // multiple fields
-	list []*EntryVar // list
+	list        []*EntryVar       // list
 }
 
 func NewDatabase() *Database {
 	return &Database{
 		defaultDelegator: USER_ANYONE,
-		principals: make(map[string]*EntryUser, 0),
-		delegations: make(map[string][]*EntryDelegation, 0),
-		vars: make(map[string]*EntryVar, 0),
+		principals:       make(map[string]*EntryUser, 0),
+		delegations:      make(map[string][]*EntryDelegation, 0),
+		vars:             make(map[string]*EntryVar, 0),
 	}
 }
 
@@ -74,14 +75,14 @@ func SnapshotDatabase(env *GlobalEnv) {
 	delegations := make(map[string][]*EntryDelegation, len(env.db.delegations))
 	vars := make(map[string]*EntryVar, len(env.db.vars))
 
-	for k,v := range env.db.principals {
+	for k, v := range env.db.principals {
 		principals[k] = &EntryUser{v.name, v.pw}
 	}
-	for k,v := range env.db.delegations {
+	for k, v := range env.db.delegations {
 		delegations[k] = make([]*EntryDelegation, len(v))
 		copy(delegations[k], v)
 	}
-	for k,v := range env.db.vars {
+	for k, v := range env.db.vars {
 		var fv map[string]string
 		var lst []*EntryVar
 		if v.mode == VAR_MODE_RECORD {
@@ -99,9 +100,9 @@ func SnapshotDatabase(env *GlobalEnv) {
 					}
 				}
 				lst[i] = &EntryVar{
-					name: "",
-					mode: l.mode,
-					value: l.value,
+					name:        "",
+					mode:        l.mode,
+					value:       l.value,
 					fieldValues: fv,
 				}
 			}
@@ -120,16 +121,16 @@ func NewEntryVar(ident string, val *Value) *EntryVar {
 	var l []*EntryVar
 	if val.mode == VAR_MODE_LIST {
 		l = make([]*EntryVar, len(val.list))
-		for i,v := range val.list {
+		for i, v := range val.list {
 			l[i] = NewEntryVar("", v)
 		}
 	}
-	return &EntryVar {
-		name: ident,
-		mode: val.mode,
-		value: val.val,
+	return &EntryVar{
+		name:        ident,
+		mode:        val.mode,
+		value:       val.val,
 		fieldValues: val.vals,
-		list: l,
+		list:        l,
 	}
 }
 
@@ -137,13 +138,13 @@ func NewValue(ev *EntryVar) *Value {
 	var l []*Value
 	if ev.mode == VAR_MODE_LIST {
 		l = make([]*Value, len(ev.list))
-		for i,v := range ev.list {
+		for i, v := range ev.list {
 			l[i] = NewValue(v)
 		}
 	}
-	return &Value {
+	return &Value{
 		mode: ev.mode,
-		val: ev.value,
+		val:  ev.value,
 		vals: ev.fieldValues,
 		list: l,
 	}
@@ -163,10 +164,14 @@ func (env *ProgramEnv) printDB() {
 		for _, v := range d {
 			right := "N/A"
 			switch v.right {
-			case READ: right = "READ"
-			case WRITE: right = "WRITE"
-			case APPEND: right = "APPEND"
-			case DELEGATE: right = "DELEGATE"
+			case READ:
+				right = "READ"
+			case WRITE:
+				right = "WRITE"
+			case APPEND:
+				right = "APPEND"
+			case DELEGATE:
+				right = "DELEGATE"
 			}
 			fmt.Printf("\t{%s %s %s -> %s}\n", v.varName, v.issuerName,
 				right, v.targetName)
@@ -186,11 +191,11 @@ func (env *ProgramEnv) printDB() {
 func printValue(v *EntryVar) string {
 	if v.mode == 0 {
 		return v.value
-	} else if v.mode == VAR_MODE_LIST{
+	} else if v.mode == VAR_MODE_LIST {
 		s := "["
-		for i,l := range v.list {
+		for i, l := range v.list {
 			s += printValue(l)
-			if i < len(v.list) - 1 {
+			if i < len(v.list)-1 {
 				s += ", "
 			}
 		}
@@ -234,7 +239,7 @@ func (db *Database) isUserAdmin(name string) bool {
 }
 
 func (env *ProgramEnv) getVarValueForWith(ident, principal string,
-		rs... AccessRight) (int, *Value) {
+	rs ...AccessRight) (int, *Value) {
 	// check locals
 	if env.doesLocalVarExist(ident) {
 		return DB_VAR_FOUND, NewValue(env.getLocalVar(ident))
@@ -258,7 +263,7 @@ func (env *ProgramEnv) getLocalVar(ident string) *EntryVar {
 func (env *ProgramEnv) setLocalVar(ident string, val *Value) int {
 	// check if variable already exists (global/locals)
 	if env.doesGlobalVarExist(ident) ||
-			env.doesLocalVarExist(ident) {
+		env.doesLocalVarExist(ident) {
 		return DB_VAR_NOT_FOUND
 	}
 	env.locals[ident] = NewEntryVar(ident, val)
@@ -279,7 +284,7 @@ func (env *ProgramEnv) doesVarExist(ident string) bool {
 }
 
 func (env *ProgramEnv) setVarForWith(ident string, val *Value, principal string,
-		rs... AccessRight) int {
+	rs ...AccessRight) int {
 	db := env.globals.db
 	// check locals
 	if env.doesLocalVarExist(ident) {
@@ -309,7 +314,7 @@ func (env *ProgramEnv) doesGlobalVarExist(ident string) bool {
 }
 
 func (env *ProgramEnv) getFieldValueForWith(ident, field, principal string,
-		rs... AccessRight) (int, string) {
+	rs ...AccessRight) (int, string) {
 	db := env.globals.db
 	if !db.hasUserPrivilegeAtLeastOne(ident, principal, rs...) {
 		return DB_INSUFFICIENT_RIGHTS, ""
@@ -371,6 +376,36 @@ func (db *Database) setDefaultDelegator(target string) {
 
 func (db *Database) setDelegation(varName, issuer, target string, r AccessRight) int {
 	//TODO: give right `r` to that principal
+
+	// Fail #1: if either p or q does not exist
+	_, issuerExists := db.principals[issuer]
+	_, targetExists := db.principals[target]
+
+	if !issuerExists || !targetExists {
+		return DB_VAR_NOT_FOUND
+	}
+
+	// Fail #2: if q does not have delegate permission on varName
+	if _, issuerHasDelegations := db.delegations[issuer]; issuerHasDelegations {
+		for _, entryDelegation := range db.delegations[issuer] {
+			if entryDelegation.targetName != issuer || entryDelegation.right != DELEGATE || entryDelegation.varName != varName {
+				return DB_VAR_NOT_FOUND
+			}
+		}
+	}
+
+	entryDelegation := EntryDelegation{
+		targetName: target,
+		issuerName: issuer,
+		varName:    varName,
+		right:      r,
+	}
+
+	db.delegations[target] = append(db.delegations[target], &entryDelegation)
+	// TODO: check enforcement conditions
+
+	// TODO: check set delegation method failure conditions
+
 	return DB_SUCCESS
 }
 
@@ -380,7 +415,7 @@ func (db *Database) setDelegationAllRights(varName, issuer, target string) int {
 }
 
 func (db *Database) deleteDelegation(varName, issuer, target string,
-		r AccessRight) int {
+	r AccessRight) int {
 	//TODO: revoke right `r` from principal
 	return DB_SUCCESS
 }
@@ -403,7 +438,7 @@ func (db *Database) hasUserPrivilege(varName, principal string, r AccessRight) b
 }
 
 func (db *Database) hasUserPrivilegeAtLeastOne(varName, principal string,
-		rs... AccessRight) bool {
+	rs ...AccessRight) bool {
 	//TODO: return true if principal has at least one of the rights in `rs`
 	return true
 }
