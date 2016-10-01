@@ -9,3 +9,4 @@ test2:
 test3:
 	cat test/test003.txt | nc localhost 6666
 	cat test/test004.txt | nc localhost 6666
+	cat test/test005.txt | nc localhost 6666
