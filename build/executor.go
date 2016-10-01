@@ -138,7 +138,7 @@ func (cmd CmdCreatePr) execute(env *ProgramEnv) int {
 		env.results = []Result{ Result{Status: "DENIED"} }
 		return DENIED
 	}
-	env.globals.db.addUser(cmd.principal, cmd.pw)
+	env.addUser(cmd.principal, cmd.pw)
 	env.results = append(env.results, Result{Status: "CREATE_PRINCIPAL"})
 	return SUCCESS
 }
@@ -257,7 +257,7 @@ func (cmd CmdSetDeleg) execute(env *ProgramEnv) int {
 		env.results = []Result{ Result{Status: "FAILED"} }
 		return FAILED
 	}
-	s := env.globals.db.setDelegation(cmd.tgt, cmd.q, cmd.p, cmd.right)
+	s := env.setDelegation(cmd.tgt, cmd.q, cmd.p, cmd.right)
 	switch s {
 	case DB_SUCCESS:
 		env.results = append(env.results, Result{Status: "SET_DELEGATION"})
@@ -275,7 +275,7 @@ func (cmd CmdDeleteDeleg) execute(env *ProgramEnv) int {
 		env.results = []Result{ Result{Status: "FAILED"} }
 		return FAILED
 	}
-	s := env.globals.db.deleteDelegation(cmd.tgt, cmd.q, cmd.p, cmd.right)
+	s := env.deleteDelegation(cmd.tgt, cmd.q, cmd.p, cmd.right)
 	switch s {
 	case DB_SUCCESS:
 		env.results = append(env.results, Result{Status: "SET_DELEGATION"})
@@ -297,7 +297,7 @@ func (cmd CmdDefaultDeleg) execute(env *ProgramEnv) int {
 		env.results = []Result{ Result{Status: "DENIED"} }
 		return DENIED
 	}
-	env.globals.db.setDefaultDelegator(cmd.p)
+	env.setDefaultDelegator(cmd.p)
 	return SUCCESS
 }
 

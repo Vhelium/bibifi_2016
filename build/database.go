@@ -62,12 +62,15 @@ type EntryVar struct {
 }
 
 func NewDatabase() *Database {
-	return &Database{
+	db := &Database{
 		defaultDelegator: USER_ANYONE,
 		principals:       make(map[string]*EntryUser, 0),
 		delegations:      make(map[string][]*EntryDelegation, 0),
 		vars:             make(map[string]*EntryVar, 0),
 	}
+	db.defaultDelegator = USER_ANYONE
+	db.principals[USER_ADMIN] = &EntryUser{name: USER_ADMIN, pw: "admin"}
+	return db
 }
 
 func SnapshotDatabase(env *GlobalEnv) {
@@ -221,8 +224,12 @@ func (db *Database) isUserExists(name string) bool {
 	return false
 }
 
-func (db *Database) addUser(name, pw string) {
-	db.principals[name] = &EntryUser{name: name, pw: pw}
+func (env *ProgramEnv) addUser(name, pw string) {
+	env.globals.db.principals[name] = &EntryUser{name: name, pw: pw}
+	// give default permissions via default delegator
+	for _, r := range []AccessRight{READ, WRITE, DELEGATE, APPEND} {
+		env.setDelegationAllVars(env.principal, name, r)
+	}
 }
 
 func (db *Database) changePassword(name, pw string) {
@@ -246,7 +253,7 @@ func (env *ProgramEnv) getVarValueForWith(ident, principal string,
 	}
 
 	// check globals
-	if !env.globals.db.hasUserPrivilegeAtLeastOne(ident, principal, rs...) {
+	if !env.hasUserPrivilegeAtLeastOne(ident, principal, rs...) {
 		return DB_INSUFFICIENT_RIGHTS, nil
 	}
 	if ev, ok := env.globals.db.vars[ident]; ok {
@@ -293,7 +300,7 @@ func (env *ProgramEnv) setVarForWith(ident string, val *Value, principal string,
 	}
 	// check if variable exists && principal has `rs` rights on it
 	if env.doesGlobalVarExist(ident) {
-		if db.hasUserPrivilegeAtLeastOne(ident, principal, rs...) {
+		if env.hasUserPrivilegeAtLeastOne(ident, principal, rs...) {
 			db.vars[ident] = NewEntryVar(ident, val)
 			return DB_SUCCESS
 		} else {
@@ -303,7 +310,7 @@ func (env *ProgramEnv) setVarForWith(ident string, val *Value, principal string,
 	} else {
 		// otherwise, create new w/ corresponding rights
 		db.vars[ident] = NewEntryVar(ident, val)
-		db.setDelegationAllRights(ident, USER_ADMIN, principal)
+		env.setDelegationAllRights(ident, USER_ADMIN, principal)
 		return DB_SUCCESS
 	}
 }
@@ -316,7 +323,7 @@ func (env *ProgramEnv) doesGlobalVarExist(ident string) bool {
 func (env *ProgramEnv) getFieldValueForWith(ident, field, principal string,
 	rs ...AccessRight) (int, string) {
 	db := env.globals.db
-	if !db.hasUserPrivilegeAtLeastOne(ident, principal, rs...) {
+	if !env.hasUserPrivilegeAtLeastOne(ident, principal, rs...) {
 		return DB_INSUFFICIENT_RIGHTS, ""
 	}
 	var ev *EntryVar
@@ -369,13 +376,28 @@ func (env *ProgramEnv) concatListToListFor(ident string, val *Value, pr string) 
 
 // >>>>>>>>>>>>>>> DELEGATION ASSERTIONS >>>>>>>>>>>>>>>>>>>>>>>>>>
 
-func (db *Database) setDefaultDelegator(target string) {
+func (env *ProgramEnv) setDefaultDelegator(target string) {
 	// rights have to be checked by caller.
-	db.defaultDelegator = target
+	// TODO: implement logic for this..
+	env.globals.db.defaultDelegator = target
 }
 
-func (db *Database) setDelegation(varName, issuer, target string, r AccessRight) int {
-	//TODO: give right `r` to that principal
+func (env *ProgramEnv) getDelegationIndex(varName, issuer, target string,
+		r AccessRight) (int, bool) {
+	if delegs, ok := env.globals.db.delegations[target]; ok {
+		for i, d := range delegs {
+			if d.issuerName == issuer && d.varName == varName && d.right == r {
+				return i, true
+			}
+		}
+	}
+	return -1, false
+}
+
+
+func (env *ProgramEnv) setDelegation(varName, issuer, target string,
+		r AccessRight) int {
+	db := env.globals.db
 
 	// Fail #1: if either p or q does not exist
 	_, issuerExists := db.principals[issuer]
@@ -385,13 +407,23 @@ func (db *Database) setDelegation(varName, issuer, target string, r AccessRight)
 		return DB_VAR_NOT_FOUND
 	}
 
-	// Fail #2: if q does not have delegate permission on varName
-	if _, issuerHasDelegations := db.delegations[issuer]; issuerHasDelegations {
-		for _, entryDelegation := range db.delegations[issuer] {
-			if entryDelegation.targetName != issuer || entryDelegation.right != DELEGATE || entryDelegation.varName != varName {
-				return DB_VAR_NOT_FOUND
+	// Fail #2 x does not exist or is local var
+	if !env.doesGlobalVarExist(varName) {
+		return DB_VAR_NOT_FOUND
+	}
+
+	// Fail #3: if q does not have delegate permission on varName
+	hasDelegRight := false
+	if delegs, ok := db.delegations[issuer]; ok {
+		for _, d := range delegs {
+			if d.varName == varName && d.right == DELEGATE {
+				hasDelegRight = true
+				break
 			}
 		}
+	}
+	if !db.isUserAdmin(env.principal) && !hasDelegRight {
+		return DB_INSUFFICIENT_RIGHTS
 	}
 
 	entryDelegation := EntryDelegation{
@@ -400,45 +432,123 @@ func (db *Database) setDelegation(varName, issuer, target string, r AccessRight)
 		varName:    varName,
 		right:      r,
 	}
-
 	db.delegations[target] = append(db.delegations[target], &entryDelegation)
-	// TODO: check enforcement conditions
-
-	// TODO: check set delegation method failure conditions
 
 	return DB_SUCCESS
 }
 
-func (db *Database) setDelegationAllRights(varName, issuer, target string) int {
-	//TODO: give all rights to that principal
+func (env *ProgramEnv) setDelegationAllRights(varName, issuer, target string) int {
+	//TODO make more efficient lol
+	for _, r := range []AccessRight{READ, WRITE, APPEND, DELEGATE} {
+		env.setDelegation(varName, issuer, target, r)
+	}
 	return DB_SUCCESS
 }
 
-func (db *Database) deleteDelegation(varName, issuer, target string,
+func (env *ProgramEnv) deleteDelegation(varName, issuer, target string,
 	r AccessRight) int {
-	//TODO: revoke right `r` from principal
+	db := env.globals.db
+
+	// Fail #1: if either p or q does not exist
+	_, issuerExists := db.principals[issuer]
+	_, targetExists := db.principals[target]
+
+	if !issuerExists || !targetExists {
+		return DB_VAR_NOT_FOUND
+	}
+
+	// Fail #2 x does not exist or is local var
+	if !env.doesGlobalVarExist(varName) {
+		return DB_VAR_NOT_FOUND
+	}
+
+	// Fail #3: if q does not have delegate permission on varName
+	hasDelegRight := false
+	if delegs, ok := db.delegations[issuer]; ok {
+		for _, d := range delegs {
+			if d.varName == varName && d.right == DELEGATE {
+				hasDelegRight = true
+				break
+			}
+		}
+	}
+	if !(env.principal == target) && !db.isUserAdmin(env.principal) && !hasDelegRight {
+		return DB_INSUFFICIENT_RIGHTS
+	}
+
+	i, ok := env.getDelegationIndex(varName, issuer, target, r)
+	if ok {
+		db.delegations[target] = append(db.delegations[target][:i],
+			db.delegations[target][i+1:]...)
+		return DB_SUCCESS
+	}
+	return DB_VAR_NOT_FOUND
+}
+
+func (env *ProgramEnv) setDelegationAllVars(issuer, target string, r AccessRight) int {
+	// get all vars where ISSUER has right `r` on
+	vars := make([]string, 0)
+	if delegs, ok := env.globals.db.delegations[issuer]; ok {
+		for _, d := range delegs {
+			if d.right == r {
+				vars = append(vars, d.varName)
+			}
+		}
+	}
+	// add those to `target`
+	for _, v := range vars {
+		s := env.setDelegation(v, issuer, target, r)
+		if s != DB_SUCCESS {
+			return s
+		}
+	}
 	return DB_SUCCESS
 }
 
-func (db *Database) setDelegationAllVars(issuer, target string, r AccessRight) int {
-	//TODO: adds (zero or more) assertions of the form x i <right> -> t
-	// for all variables x on which i has delegate permission
+func (env *ProgramEnv) removeDelegationAllVars(issuer, target string,
+		r AccessRight) int {
+	// get all vars where ISSUER has right `r` on
+	vars := make([]string, 0)
+	if delegs, ok := env.globals.db.delegations[issuer]; ok {
+		for _, d := range delegs {
+			if d.right == r {
+				vars = append(vars, d.varName)
+			}
+		}
+	}
+	// remove those from `target`
+	for _, v := range vars {
+		s := env.deleteDelegation(v, issuer, target, r)
+		if s != DB_SUCCESS {
+			return s
+		}
+	}
 	return DB_SUCCESS
 }
 
-func (db *Database) removeDelegationAllVars(issuer, target string, r AccessRight) int {
-	//TODO: revokes (zero or more) assertions of the form x i <right> -> t
-	// for those variables x on which i has delegate permission
-	return DB_SUCCESS
+func (env *ProgramEnv) hasUserPrivilege(varName, principal string, r AccessRight) bool {
+	return env.hasUserPrivilegeAtLeastOne(varName, principal, r)
 }
 
-func (db *Database) hasUserPrivilege(varName, principal string, r AccessRight) bool {
-	// TODO: return true if principal has right `r`
-	return true
-}
-
-func (db *Database) hasUserPrivilegeAtLeastOne(varName, principal string,
+func (env *ProgramEnv) hasUserPrivilegeAtLeastOne(varName, principal string,
 	rs ...AccessRight) bool {
-	//TODO: return true if principal has at least one of the rights in `rs`
-	return true
+	if env.doesLocalVarExist(varName) {
+		return true
+	}
+	for _,p := range []string{principal, USER_ANYONE} {
+		if delegs, ok := env.globals.db.delegations[p]; ok {
+			// loop all delegation statements for that principal
+			for _, deleg := range delegs {
+				if deleg.varName == varName {
+					// loop all possible rights
+					for _, r := range rs {
+						if deleg.right == r {
+							return true
+						}
+					}
+				}
+			}
+		}
+	}
+	return false
 }
