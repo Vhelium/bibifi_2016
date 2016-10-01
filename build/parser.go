@@ -488,10 +488,14 @@ func(*Parser) parseCmdSetDeleg(t *Tokenizer) (int, Cmd) {
 	}
 
 	// get identifier
-	tok, right := t.Scan()
-	if tok != KV_READ && tok != KV_WRITE && tok != KV_DELEGATE && tok != KV_APPEND {
-		parseError("expected IDENT-right in CmdSetDeleg")
-		return 2, nil
+	tok, _ = t.Scan()
+	var r AccessRight
+	switch(tok) {
+	case KV_READ: r = READ
+	case KV_WRITE: r = WRITE
+	case KV_DELEGATE: r = DELEGATE
+	case KV_APPEND: r = APPEND
+	default: parseError("expected IDENT-right in CmdSetDeleg"); return 2, nil
 	}
 
 	// read -> token
@@ -507,11 +511,7 @@ func(*Parser) parseCmdSetDeleg(t *Tokenizer) (int, Cmd) {
 		return 2, nil
 	}
 
-	r, err := strconv.Atoi(right)
-	if err != nil {
-		parseError("invalid right in CmdSetDeleg")
-	}
-	return 0, CmdSetDeleg{tgt, q, AccessRight(r), p}
+	return 0, CmdSetDeleg{tgt, q, r, p}
 }
 
 func(*Parser) parseCmdDeleteDeleg(t *Tokenizer) (int, Cmd) {

@@ -228,7 +228,7 @@ func (env *ProgramEnv) addUser(name, pw string) {
 	env.globals.db.principals[name] = &EntryUser{name: name, pw: pw}
 	// give default permissions via default delegator
 	for _, r := range []AccessRight{READ, WRITE, DELEGATE, APPEND} {
-		env.setDelegationAllVars(env.principal, name, r)
+		env.setDelegationAllVars(env.globals.db.defaultDelegator, name, r)
 	}
 }
 
@@ -310,7 +310,8 @@ func (env *ProgramEnv) setVarForWith(ident string, val *Value, principal string,
 	} else {
 		// otherwise, create new w/ corresponding rights
 		db.vars[ident] = NewEntryVar(ident, val)
-		env.setDelegationAllRights(ident, USER_ADMIN, principal)
+		fmt.Printf("set all rights\n")
+		env.setDelegationAllRights(ident, principal, principal)
 		return DB_SUCCESS
 	}
 }
@@ -399,6 +400,12 @@ func (env *ProgramEnv) setDelegation(varName, issuer, target string,
 		r AccessRight) int {
 	db := env.globals.db
 
+	fmt.Printf("setting deleg: %s, %s, %s, %d\n", varName, issuer, target, r)
+
+	if env.globals.db.isUserAdmin(target) {
+		return DB_SUCCESS
+	}
+
 	// Fail #1: if either p or q does not exist
 	_, issuerExists := db.principals[issuer]
 	_, targetExists := db.principals[target]
@@ -422,7 +429,7 @@ func (env *ProgramEnv) setDelegation(varName, issuer, target string,
 			}
 		}
 	}
-	if !db.isUserAdmin(env.principal) && !hasDelegRight {
+	if !db.isUserAdmin(env.principal) && !(env.principal == issuer) && !hasDelegRight {
 		return DB_INSUFFICIENT_RIGHTS
 	}
 
@@ -448,6 +455,10 @@ func (env *ProgramEnv) setDelegationAllRights(varName, issuer, target string) in
 func (env *ProgramEnv) deleteDelegation(varName, issuer, target string,
 	r AccessRight) int {
 	db := env.globals.db
+
+	if env.globals.db.isUserAdmin(target) {
+		return DB_SUCCESS
+	}
 
 	// Fail #1: if either p or q does not exist
 	_, issuerExists := db.principals[issuer]
@@ -532,7 +543,7 @@ func (env *ProgramEnv) hasUserPrivilege(varName, principal string, r AccessRight
 
 func (env *ProgramEnv) hasUserPrivilegeAtLeastOne(varName, principal string,
 	rs ...AccessRight) bool {
-	if env.doesLocalVarExist(varName) {
+	if env.globals.db.isUserAdmin(principal) || env.doesLocalVarExist(varName) {
 		return true
 	}
 	for _,p := range []string{principal, USER_ANYONE} {
