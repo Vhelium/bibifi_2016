@@ -113,7 +113,7 @@ func executeProgram(p string) string {
 	res = prg.execute(env)
 	if res != TERMINATED {
 		// rollback db
-		//RollbackDatabase(globals)
+		RollbackDatabase(globals)
 	}
 
 	result := ""
