@@ -106,12 +106,9 @@ func executeProgram(p string) string {
 	}
 
 	result := ""
-	for i, r := range env.results {
+	for _, r := range env.results {
 		res, e := json.Marshal(r)
-		result += string(res)
-		if i < len(env.results) - 1 {
-			result += "\n"
-		}
+		result += string(res) + "\n"
 		if e != nil { fmt.Printf("err: ", e) }
 		fmt.Printf("ress: %s\n", res)
 	}
