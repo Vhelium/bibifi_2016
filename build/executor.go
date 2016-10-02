@@ -66,9 +66,11 @@ func (expr ExprRecord) eval(env *ProgramEnv) (int, *Value) {
 		s, v := vals.eval(env)
 		if s != DB_VAR_FOUND {
 			return s, nil
-		} else {
+		} else if v.mode == VAR_MODE_SINGLE {
 			// must evaluate to string
 			f[k] = v.val
+		} else {
+			return DB_VAR_NOT_FOUND, nil
 		}
 	}
 	return DB_VAR_FOUND, &Value{mode: VAR_MODE_RECORD, vals: f}
