@@ -2,8 +2,8 @@ package main
 
 import (
 	"strings"
-	"fmt"
 	"strconv"
+	"fmt"
 )
 
 type Parser struct {
@@ -124,21 +124,17 @@ func parseProgram(prg string) (int, *Program) {
 	parser := newParser(prg)
 	lines := strings.Split(prg, "\n")
 	for i, l := range lines {
-		fmt.Printf("Line(%d): ", i)
 
 		c, cmd := parser.parseLine(i, l)
 		if c == 0 { // successful
 			if cmd != nil {
 				parser.prg.cmds = append(parser.prg.cmds, cmd)
 			} else { // terminated
-				fmt.Printf("\n")
 				return 0, &parser.prg
 			}
 		} else {
-			fmt.Printf("\n")
 			return c, nil
 		}
-		fmt.Printf("\n")
 	}
 	return 2, nil
 }
@@ -150,8 +146,7 @@ func (p *Parser) parseLine(i int, l string) (int, Cmd) {
 
 	// loop through tokens
 	for {
-		tok, lit := tokenizer.Scan()
-		fmt.Printf("{%d, %s}, ", tok, lit)
+		tok, _ := tokenizer.Scan()
 		switch tok {
 			case EOF: return 1, nil // not implemented function
 			case KV_TERMINATE: return 0, nil

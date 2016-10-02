@@ -56,7 +56,6 @@ func main() {
 		tlen := 0;
 		bufCmd := make ([]byte, 0, 4096)
 		bufRcv := make ([]byte, 2048)
-		fmt.Printf(">>>>>>>>>>>> Program Start >>>>>>>>>>\n")
 		for { // poll for input
 			llen, err := conn.Read(bufRcv)
 			tlen += llen
@@ -73,9 +72,6 @@ func main() {
 			if tlen >= 3 && (string(bufCmd[tlen-3:tlen]) ==  "***" ||
 					string(bufCmd[tlen-4:tlen]) ==  "***\n") ||
 					lineContainsTermination(string(bufCmd)) {
-				fmt.Printf(string(bufCmd))
-				fmt.Printf(">>>>>>>>>>>> Program End >>>>>>>>>>>>\n")
-
 				r := executeProgram(string(bufCmd))
 				results := fmt.Sprintf("%s\n", r)
 				conn.Write([]byte(results))
@@ -121,10 +117,9 @@ func executeProgram(p string) string {
 		res, e := json.Marshal(r)
 		result += string(res) + "\n"
 		if e != nil { fmt.Printf("err: ", e) }
-		fmt.Printf("ress: %s\n", res)
 	}
 
-	env.printDB()
+	//env.printDB()
 
 	return result
 }
@@ -162,7 +157,6 @@ func isValidIdentifier(s string) bool {
 }
 
 func parseLine(l string) int {
-	fmt.Printf("%s", l)
 	if strings.HasPrefix(strings.TrimLeft(l, " \t"), "***") {
 		return 1
 	} else {
