@@ -65,7 +65,7 @@ func (expr ExprRecord) eval(env *ProgramEnv) (int, *Value) {
 	for k, vals := range expr.fields {
 		// check if key already exists
 		if _, ok := f[k]; ok {
-			return DB_VAR_FOUND, nil
+			return DB_VAR_NOT_FOUND, nil
 		}
 		// otherwise, evaluate expr
 		s, v := vals.eval(env)
