@@ -116,7 +116,7 @@ func (cmd CmdSet) execute(env *ProgramEnv) int {
 		if set == DB_SUCCESS {
 			env.results = append(env.results, Result{Status: "SET"})
 			return SUCCESS
-		} else if s == DB_INSUFFICIENT_RIGHTS {
+		} else if set == DB_INSUFFICIENT_RIGHTS {
 			env.results = []Result{ Result{Status: "DENIED"} }
 			return DENIED
 		} else {
@@ -168,7 +168,7 @@ func (cmd CmdLocal) execute(env *ProgramEnv) int {
 		if set == DB_SUCCESS {
 			env.results = append(env.results, Result{Status: "LOCAL"})
 			return SUCCESS
-		} else if s == DB_INSUFFICIENT_RIGHTS {
+		} else if set == DB_INSUFFICIENT_RIGHTS {
 			env.results = []Result{ Result{Status: "DENIED"} }
 			return DENIED
 		} else {
