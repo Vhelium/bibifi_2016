@@ -1,3 +1,5 @@
 build/server
 build/build
 build/a.out
+
+*.swp

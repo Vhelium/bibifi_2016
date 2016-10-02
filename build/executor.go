@@ -90,12 +90,17 @@ func (cmd CmdExit) execute(env *ProgramEnv) int {
 }
 
 func (cmd CmdReturn) execute(env *ProgramEnv) int {
-	_, o := cmd.expr.eval(env)
-	env.results = append(env.results, Result{
-		Status: "RETURNING",
-		Output: formatOutput(o),
-	})
-	return TERMINATED
+	s, o := cmd.expr.eval(env)
+	if s == DB_VAR_FOUND {
+		env.results = append(env.results, Result{
+			Status: "RETURNING",
+			Output: formatOutput(o),
+		})
+		return TERMINATED
+	} else {
+		env.results = []Result{ Result{Status: "FAILED"} }
+		return FAILED
+	}
 }
 
 func (cmd CmdAsPrincipal) execute(env *ProgramEnv) int {
