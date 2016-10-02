@@ -108,8 +108,11 @@ func (t *Tokenizer) Scan() (tok Token, lit string) {
 	}
 	ch := t.read()
 
+	leadingWhiteSpace := false
+
 	// ignore whitespace
 	if isWhitespace(ch) {
+		leadingWhiteSpace = true
 		for {
 			ch = t.read()
 			if ch == eof || !isWhitespace(ch) {
@@ -157,7 +160,7 @@ func (t *Tokenizer) Scan() (tok Token, lit string) {
 	case '"':
 		return t.scanString()
 	case '/':
-		if t.read() == '/' {
+		if t.read() == '/' && !leadingWhiteSpace {
 			return t.scanComment()
 		} else {
 			return ILLEGAL, ""
@@ -282,7 +285,11 @@ func (t *Tokenizer) scanComment() (tok Token, lit string) {
 	var buf bytes.Buffer
 	for {
 		if ch := t.read(); ch == eof {
-			return COMMENT, buf.String()
+			if isValidComment(buf.String()) {
+				return COMMENT, buf.String()
+			} else {
+				return ILLEGAL, "invalidComment"
+			}
 		} else {
 			_, _ = buf.WriteRune(ch)
 		}

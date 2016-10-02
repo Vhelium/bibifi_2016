@@ -15,6 +15,7 @@ import (
 
 var legitStringRegex *regexp.Regexp
 var legitIdentifierRegex *regexp.Regexp
+var legitCommentRegex *regexp.Regexp
 var globals *GlobalEnv
 
 func main() {
@@ -130,6 +131,7 @@ func executeProgram(p string) string {
 func initialize() {
 	legitStringRegex = regexp.MustCompile(`[A-Za-z0-9_ ,;\.?!-]*`)
 	legitIdentifierRegex = regexp.MustCompile(`[A-Za-z][A-Za-z0-9_]*`)
+	legitCommentRegex = regexp.MustCompile(`[A-Za-z0-9_ ,;\.?!-]*`)
 	globals = NewGlobalEnv()
 }
 
@@ -151,12 +153,16 @@ func isArgPwLegit(pw string) bool {
 }
 
 func isValidString(s string) bool {
-	return len(s) <= 65535 && s == legitStringRegex.FindString(s);
+	return len(s) <= 65535 && s == legitStringRegex.FindString(s)
 }
 
 func isValidIdentifier(s string) bool {
 	fmt.Printf("ident len: %d(%s)\n", len(s), s)
-	return len(s) <= 255 && s == legitStringRegex.FindString(s);
+	return len(s) <= 255 && s == legitIdentifierRegex.FindString(s)
+}
+
+func isValidComment(s string) bool {
+	return s == legitCommentRegex.FindString(s)
 }
 
 func parseLine(l string) int {
