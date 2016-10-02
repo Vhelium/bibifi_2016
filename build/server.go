@@ -155,6 +155,7 @@ func isValidString(s string) bool {
 }
 
 func isValidIdentifier(s string) bool {
+	fmt.Printf("ident len: %d", len(s))
 	return len(s) <= 255 && s == legitStringRegex.FindString(s);
 }
 
