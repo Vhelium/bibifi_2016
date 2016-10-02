@@ -24,6 +24,9 @@ type Cmd interface {
 	execute(*ProgramEnv) int
 }
 
+type CmdComment struct {
+}
+
 type CmdReturn struct {
 	expr Expr
 }
@@ -161,6 +164,7 @@ func (p *Parser) parseLine(i int, l string) (int, Cmd) {
 			case KV_FOREACH: return p.parseCmdForeach(tokenizer)
 			case KV_DELETE: return p.parseCmdDeleteDeleg(tokenizer)
 			case KV_DEFAULT: return p.parseCmdDefaultDeleg(tokenizer)
+			case COMMENT: return p.parseCmdComment(tokenizer)
 			default: return 1, nil
 		}
 	}
@@ -581,4 +585,8 @@ func(*Parser) parseCmdDefaultDeleg(t *Tokenizer) (int, Cmd) {
 		return 2, nil
 	}
 	return 0, CmdDefaultDeleg{p}
+}
+
+func(*Parser) parseCmdComment(t *Tokenizer) (int, Cmd) {
+	return 0, CmdComment{}
 }

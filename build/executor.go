@@ -110,6 +110,10 @@ func (cmd CmdReturn) execute(env *ProgramEnv) int {
 	}
 }
 
+func (cmd CmdComment) execute(env *ProgramEnv) int {
+	return SUCCESS
+}
+
 func (cmd CmdAsPrincipal) execute(env *ProgramEnv) int {
 	env.principal = cmd.principal
 	env.pw = cmd.pw
