@@ -151,8 +151,7 @@ func isArgPwLegit(pw string) bool {
 }
 
 func isValidString(s string) bool {
-	//return len(s) <= 65535 && ...
-	return s == legitStringRegex.FindString(s);
+	return len(s) <= 65535 && s == legitStringRegex.FindString(s);
 }
 
 func isValidIdentifier(s string) bool {
