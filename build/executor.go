@@ -63,6 +63,11 @@ func (expr ExprEmptyList) eval(env *ProgramEnv) (int, *Value) {
 func (expr ExprRecord) eval(env *ProgramEnv) (int, *Value) {
 	f := make(map[string]string,0)
 	for k, vals := range expr.fields {
+		// check if key already exists
+		if _, ok := f[k]; ok {
+			return DB_VAR_FOUND, nil
+		}
+		// otherwise, evaluate expr
 		s, v := vals.eval(env)
 		if s != DB_VAR_FOUND {
 			return s, nil
