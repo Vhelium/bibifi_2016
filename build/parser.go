@@ -273,6 +273,10 @@ func (p *Parser) parseExpr(t *Tokenizer) (int, Expr) {
 			// read <value>
 			s, valExp := p.parseValue(t)
 			if s == 0 {
+				if _, exists := fields[iExp]; exists {
+					parseError("duplicate key in record")
+					return 2, nil
+				}
 				fields[iExp] = valExp
 			} else {
 				parseError("invalid value in record")
