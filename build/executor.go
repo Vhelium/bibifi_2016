@@ -300,7 +300,7 @@ func (cmd CmdDeleteDeleg) execute(env *ProgramEnv) int {
 	s := env.deleteDelegation(cmd.tgt, cmd.q, cmd.p, cmd.right)
 	switch s {
 	case DB_SUCCESS:
-		env.results = append(env.results, Result{Status: "SET_DELEGATION"})
+		env.results = append(env.results, Result{Status: "DELETE_DELEGATION"})
 		return SUCCESS
 	case DB_INSUFFICIENT_RIGHTS:
 		env.results = []Result{ Result{Status: "DENIED"} }
@@ -320,6 +320,7 @@ func (cmd CmdDefaultDeleg) execute(env *ProgramEnv) int {
 		return DENIED
 	}
 	env.setDefaultDelegator(cmd.p)
+	env.results = append(env.results, Result{Status: "DEFAULT_DELEGATOR"})
 	return SUCCESS
 }
 
