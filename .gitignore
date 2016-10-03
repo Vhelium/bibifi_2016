@@ -2,5 +2,6 @@ build/server.exe
 build/server
 build/build
 build/a.out
+tests/out.txt
 
 *.swp

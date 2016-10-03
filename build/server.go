@@ -51,8 +51,8 @@ func main() {
 			log.Printf("Client aborted: \n", err)
 		}
 		// set timeouts
-		conn.SetReadDeadline(time.Now().Add(time.Second * 27))
-		conn.SetWriteDeadline(time.Now().Add(time.Second * 27))
+		conn.SetReadDeadline(time.Now().Add(time.Minute * 3))
+		conn.SetWriteDeadline(time.Now().Add(time.Minute * 5))
 
 		tlen := 0;
 		bufCmd := make ([]byte, 0, 4096)
@@ -76,7 +76,8 @@ func main() {
 					lineContainsTermination(string(bufCmd)) {
 				r, s := executeProgram(string(bufCmd))
 				results := fmt.Sprintf("%s\n", r)
-				conn.Write([]byte(results))
+				_, err := conn.Write([]byte(results))
+				vcheck(err)
 				conn.Close()
 				if s == 0 {
 					log.Printf("Shutting down server")
