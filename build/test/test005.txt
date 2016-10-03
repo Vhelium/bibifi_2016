@@ -1,3 +1,5 @@
 as principal admin password "admin" do
-  exit
+    set x = []
+    append to x with "s"
+    return x
 ***

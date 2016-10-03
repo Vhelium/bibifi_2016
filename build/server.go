@@ -52,12 +52,11 @@ func main() {
 		}
 		// set timeouts
 		conn.SetReadDeadline(time.Now().Add(time.Second * 13))
-		conn.SetWriteDeadline(time.Now().Add(time.Second * 13))
+		conn.SetWriteDeadline(time.Now().Add(time.Second * 23))
 
 		tlen := 0;
 		bufCmd := make ([]byte, 0, 4096)
 		bufRcv := make ([]byte, 2048)
-		O:
 		for { // poll for input
 			llen, err := conn.Read(bufRcv)
 			tlen += llen
@@ -65,12 +64,13 @@ func main() {
 				if err != io.EOF {
 					fmt.Println("Read error:", err)
 				}
-				conn.Write([]byte("{\"status\": \"TIMEOUT\"}"))
-				conn.Close()
-				break O
-			} else {
-				bufCmd = append(bufCmd, bufRcv[:llen]...)
+				//conn.Write([]byte("{\"status\": \"TIMEOUT\"}"))
+				//conn.Close()
+				break
 			}
+
+			bufCmd = append(bufCmd, bufRcv[:llen]...)
+
 			if (tlen >= 3 && (string(bufCmd[tlen-3:tlen]) ==  "***")) ||
 					(tlen >= 4 && (string(bufCmd[tlen-4:tlen]) ==  "***\n")) ||
 					lineContainsTermination(string(bufCmd)) {

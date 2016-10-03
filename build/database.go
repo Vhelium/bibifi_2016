@@ -302,7 +302,6 @@ func (env *ProgramEnv) setVarForWith(ident string, val *Value, principal string,
 	if env.doesGlobalVarExist(ident) {
 		if env.hasUserPrivilegeAtLeastOne(ident, principal, rs...) {
 			db.vars[ident] = NewEntryVar(ident, val)
-			fmt.Printf("newly written var: %v\n", db.vars[ident])
 			return DB_SUCCESS
 		} else {
 			//insufficient perms
@@ -311,7 +310,6 @@ func (env *ProgramEnv) setVarForWith(ident string, val *Value, principal string,
 	} else {
 		// otherwise, create new w/ corresponding rights
 		db.vars[ident] = NewEntryVar(ident, val)
-		fmt.Printf("newly created var: %v\n", db.vars[ident])
 		env.setDelegationAllRights(ident, principal, principal)
 		return DB_SUCCESS
 	}
@@ -352,7 +350,6 @@ func (env *ProgramEnv) appendVarToListFor(ident string, val *Value, pr string) i
 	s, l := env.getVarValueForWith(ident, pr)
 	if s == DB_VAR_FOUND {
 		l.list = append(l.list, val)
-		fmt.Printf("new list: %v\n", l.list)
 		s2 := env.setVarForWith(ident, l, pr) // we already know we have the rights
 		return s2
 	} else {
