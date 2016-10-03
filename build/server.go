@@ -83,6 +83,7 @@ func main() {
 				break
 			}
 		}
+		conn.Close()
 	}
 }
 
@@ -125,8 +126,6 @@ func executeProgram(p string) (string, int) {
 		}
 		if e != nil { fmt.Printf("err: ", e) }
 	}
-
-	env.printDB()
 
 	return result, env.status_code
 }

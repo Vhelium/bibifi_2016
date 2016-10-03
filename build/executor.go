@@ -86,7 +86,6 @@ func (expr ExprRecord) eval(env *ProgramEnv) (int, *Value) {
 func (p Program) execute(env *ProgramEnv) int {
 	for _,cmd := range p.cmds {
 		r := cmd.execute(env)
-		env.printDB()
 		if r != SUCCESS {
 			return r
 		}
