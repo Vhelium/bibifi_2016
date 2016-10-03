@@ -27,7 +27,7 @@ func main() {
 		if isArgPortLegit(os.Args[1]) {
 			port = os.Args[1]
 		} else {
-			log.Fatal("Invalid port argument")
+			log.Printf("Invalid port argument!")
 			os.Exit(255)
 		}
 	}
@@ -35,7 +35,7 @@ func main() {
 		if isArgPwLegit(os.Args[2]) {
 			password = os.Args[2]
 		} else {
-			log.Fatal("Invalid pw argument")
+			log.Printf("Invalid pw argument")
 			os.Exit(255)
 		}
 	}
@@ -67,16 +67,19 @@ func main() {
 				break
 			}
 
-			// TODO: make it more efficient (i.e. direct copy)
 			bufCmd = append(bufCmd, bufRcv[:llen]...)
 
 			if tlen >= 3 && (string(bufCmd[tlen-3:tlen]) ==  "***" ||
 					string(bufCmd[tlen-4:tlen]) ==  "***\n") ||
 					lineContainsTermination(string(bufCmd)) {
-				r := executeProgram(string(bufCmd))
+				r, s := executeProgram(string(bufCmd))
 				results := fmt.Sprintf("%s\n", r)
 				conn.Write([]byte(results))
 				conn.Close()
+				if s == 0 {
+					log.Printf("Shutting down server")
+					os.Exit(0)
+				}
 				break
 			}
 		}
@@ -93,11 +96,11 @@ func lineContainsTermination(p string) bool {
 	return false
 }
 
-func executeProgram(p string) string {
+func executeProgram(p string) (string, int) {
 	// parse
 	res, prg := parseProgram(p)
 	if res != 0 || prg == nil {
-		return "{\"status\":\"FAILED\"}"
+		return "{\"status\":\"FAILED\"}", -1
 	}
 
 	// backup db
@@ -125,7 +128,7 @@ func executeProgram(p string) string {
 
 	env.printDB()
 
-	return result
+	return result, env.status_code
 }
 
 func initialize() {
@@ -175,6 +178,5 @@ func parseLine(l string) int {
 func vcheck(err error) {
 	if err != nil {
 		fmt.Print(err)
-		os.Exit(255)
 	}
 }

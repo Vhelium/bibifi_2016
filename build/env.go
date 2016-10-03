@@ -11,6 +11,7 @@ type ProgramEnv struct {
 	globals *GlobalEnv
 	locals map[string]*EntryVar
 	results []Result
+	status_code int
 }
 
 func NewGlobalEnv() *GlobalEnv {
@@ -22,5 +23,6 @@ func NewProgramEnv(ge *GlobalEnv) *ProgramEnv {
 		globals: ge,
 		locals: make(map[string]*EntryVar, 0),
 		results: make([]Result, 0),
+		status_code: -1,
 	}
 }

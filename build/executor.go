@@ -95,8 +95,14 @@ func (p Program) execute(env *ProgramEnv) int {
 }
 
 func (cmd CmdExit) execute(env *ProgramEnv) int {
-	env.results = append(env.results, Result{Status: "EXITING"})
-	return TERMINATED
+	if env.globals.db.isUserAdmin(env.principal) {
+		env.results = append(env.results, Result{Status: "EXITING"})
+		env.status_code = 0
+		return TERMINATED
+	} else {
+		env.results = []Result{ Result{Status: "DENIED"} }
+		return DENIED
+	}
 }
 
 func (cmd CmdReturn) execute(env *ProgramEnv) int {
