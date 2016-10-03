@@ -51,43 +51,58 @@ func main() {
 			log.Printf("Client aborted: \n", err)
 		}
 		// set timeouts
-		conn.SetReadDeadline(time.Now().Add(time.Second * 10))
-		conn.SetWriteDeadline(time.Now().Add(time.Second * 10))
+		//conn.SetReadDeadline(time.Now().Add(time.Second * 13))
+		//conn.SetWriteDeadline(time.Now().Add(time.Second * 13))
 
-		succ := false
 		tlen := 0;
 		bufCmd := make ([]byte, 0, 4096)
 		bufRcv := make ([]byte, 2048)
+
+		ch := make(chan int, 1)
+		timeout := make(chan bool, 1)
+		O:
 		for { // poll for input
-			llen, err := conn.Read(bufRcv)
-			tlen += llen
-			if err != nil {
-				if err != io.EOF {
-					fmt.Println("Read error:", err)
+			go func() {
+				llen, err := conn.Read(bufRcv)
+				tlen += llen
+				ch <- 1
+				if err != nil {
+					if err != io.EOF {
+						fmt.Println("Read error:", err)
+					}
+					ch <- -1
+				} else {
+					bufCmd = append(bufCmd, bufRcv[:llen]...)
 				}
-				break
-			}
+			}()
 
-			bufCmd = append(bufCmd, bufRcv[:llen]...)
+			go func() {
+				time.Sleep(9 * time.Second)
+				timeout <- true
+			}()
 
-			if tlen >= 3 && (string(bufCmd[tlen-3:tlen]) ==  "***" ||
-					string(bufCmd[tlen-4:tlen]) ==  "***\n") ||
-					lineContainsTermination(string(bufCmd)) {
-				r, s := executeProgram(string(bufCmd))
-				results := fmt.Sprintf("%s\n", r)
-				conn.Write([]byte(results))
+			select {
+			case i:= <-ch:
+				if i == 1 &&
+						(tlen >= 3 && (string(bufCmd[tlen-3:tlen]) ==  "***" ||
+						string(bufCmd[tlen-4:tlen]) ==  "***\n") ||
+						lineContainsTermination(string(bufCmd))) {
+					r, s := executeProgram(string(bufCmd))
+					results := fmt.Sprintf("%s\n", r)
+					conn.Write([]byte(results))
+					conn.Close()
+					if s == 0 {
+						log.Printf("Shutting down server")
+						os.Exit(0)
+					}
+					break O
+				} else if i == -1 {
+					break O
+				}
+			case <-timeout:
+				conn.Write([]byte("{\"status\":\"TIMEOUT\"}"))
 				conn.Close()
-				succ = true
-				if s == 0 {
-					log.Printf("Shutting down server")
-					os.Exit(0)
-				}
-				break
 			}
-		}
-		if !succ {
-			conn.Write([]byte("{\"status\": \"TIMEOUT\"}"))
-			conn.Close()
 		}
 	}
 }
