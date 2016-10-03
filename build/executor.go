@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 )
 
 const (
@@ -34,7 +35,8 @@ func formatOutput(v *Value) interface{} {
 			list = append(list, item)
 		}
 		return list
-	}}
+	}
+}
 
 func (val ExprString) eval(env *ProgramEnv) (int, *Value) {
 	return DB_VAR_FOUND, &Value{mode:0, val: val.val}
@@ -84,6 +86,7 @@ func (expr ExprRecord) eval(env *ProgramEnv) (int, *Value) {
 func (p Program) execute(env *ProgramEnv) int {
 	for _,cmd := range p.cmds {
 		r := cmd.execute(env)
+		env.printDB()
 		if r != SUCCESS {
 			return r
 		}
@@ -206,15 +209,27 @@ func (cmd CmdAppend) execute(env *ProgramEnv) int {
 		sx, x := env.getVarValueForWith(cmd.ident, env.principal, APPEND, WRITE)
 		if sx == DB_VAR_FOUND && x.mode == VAR_MODE_LIST {
 			// append expr to cmd.ident
+			var ret int
+			fmt.Printf("Append: %s, %v, %s\n", cmd.ident, exprVal, env.principal)
 			switch exprVal.mode {
 				case VAR_MODE_SINGLE: fallthrough
 				case VAR_MODE_RECORD: // append
-					env.appendVarToListFor(cmd.ident, exprVal, env.principal)
+					ret = env.appendVarToListFor(cmd.ident, exprVal, env.principal)
 				case VAR_MODE_LIST: // concat
-					env.concatListToListFor(cmd.ident, exprVal, env.principal)
+					ret = env.concatListToListFor(cmd.ident, exprVal, env.principal)
 			}
-			env.results = append(env.results, Result{Status: "APPEND"})
-			return SUCCESS
+			if ret == DB_SUCCESS {
+				env.results = append(env.results, Result{Status: "APPEND"})
+				return SUCCESS
+			} else if ret == DB_INSUFFICIENT_RIGHTS {
+				fmt.Printf("failed to append! perms\n")
+				env.results = []Result{ Result{Status: "DENIED"} }
+				return DENIED
+			} else {
+				fmt.Printf("failed to append! dunno\n")
+				env.results = []Result{ Result{Status: "FAILED"} }
+				return FAILED
+			}
 		} else if sx == DB_INSUFFICIENT_RIGHTS {
 			env.results = []Result{ Result{Status: "DENIED"} }
 			return DENIED
@@ -279,6 +294,7 @@ func (cmd CmdSetDeleg) execute(env *ProgramEnv) int {
 		env.results = []Result{ Result{Status: "FAILED"} }
 		return FAILED
 	}
+	fmt.Printf("trying to set deleg..")
 	s := env.setDelegation(cmd.tgt, cmd.q, cmd.p, cmd.right)
 	switch s {
 	case DB_SUCCESS:
@@ -297,6 +313,7 @@ func (cmd CmdDeleteDeleg) execute(env *ProgramEnv) int {
 		env.results = []Result{ Result{Status: "FAILED"} }
 		return FAILED
 	}
+	fmt.Printf("trying to delete deleg..")
 	s := env.deleteDelegation(cmd.tgt, cmd.q, cmd.p, cmd.right)
 	switch s {
 	case DB_SUCCESS:

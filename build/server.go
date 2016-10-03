@@ -123,7 +123,7 @@ func executeProgram(p string) string {
 		if e != nil { fmt.Printf("err: ", e) }
 	}
 
-	//env.printDB()
+	env.printDB()
 
 	return result
 }
