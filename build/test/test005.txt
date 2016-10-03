@@ -1,5 +1,10 @@
 as principal admin password "admin" do
-    set x = []
-    append to x with "s"
+    set x = [] //0
+    append to x with "s" //1
+    append to x with x // 2
+    append to x with x // 4
+    append to x with x // 8 
+    append to x with x // 16
+    append to x with x // 32
     return x
 ***
