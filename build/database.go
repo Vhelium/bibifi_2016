@@ -436,7 +436,11 @@ func (env *ProgramEnv) setDelegation(varName, issuer, target string,
 		varName:    varName,
 		right:      r,
 	}
-	db.delegations[target] = append(db.delegations[target], &entryDelegation)
+	// check if this delegation already exists:
+	_, exist := env.getDelegationIndex(varName, issuer, target, r)
+	if !exist {
+		db.delegations[target] = append(db.delegations[target], &entryDelegation)
+	}
 
 	return DB_SUCCESS
 }
@@ -490,7 +494,8 @@ func (env *ProgramEnv) deleteDelegation(varName, issuer, target string,
 			db.delegations[target][i+1:]...)
 		return DB_SUCCESS
 	}
-	return DB_VAR_NOT_FOUND
+	// not found, return success still, lol
+	return DB_SUCCESS
 }
 
 func (env *ProgramEnv) setDelegationAllVars(issuer, target string, r AccessRight) int {
