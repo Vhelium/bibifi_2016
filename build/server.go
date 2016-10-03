@@ -54,6 +54,7 @@ func main() {
 		conn.SetReadDeadline(time.Now().Add(time.Second * 10))
 		conn.SetWriteDeadline(time.Now().Add(time.Second * 10))
 
+		succ := false
 		tlen := 0;
 		bufCmd := make ([]byte, 0, 4096)
 		bufRcv := make ([]byte, 2048)
@@ -76,6 +77,7 @@ func main() {
 				results := fmt.Sprintf("%s\n", r)
 				conn.Write([]byte(results))
 				conn.Close()
+				succ = true
 				if s == 0 {
 					log.Printf("Shutting down server")
 					os.Exit(0)
@@ -83,7 +85,10 @@ func main() {
 				break
 			}
 		}
-		conn.Close()
+		if !succ {
+			conn.Write([]byte("{\"status\": \"TIMEOUT\"}"))
+			conn.Close()
+		}
 	}
 }
 
