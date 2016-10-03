@@ -175,6 +175,6 @@ func parseLine(l string) int {
 func vcheck(err error) {
 	if err != nil {
 		fmt.Print(err)
-		os.Exit(2)
+		os.Exit(255)
 	}
 }
