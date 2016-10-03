@@ -65,7 +65,6 @@ func main() {
 			go func() {
 				llen, err := conn.Read(bufRcv)
 				tlen += llen
-				ch <- 1
 				if err != nil {
 					if err != io.EOF {
 						fmt.Println("Read error:", err)
@@ -73,6 +72,7 @@ func main() {
 					ch <- -1
 				} else {
 					bufCmd = append(bufCmd, bufRcv[:llen]...)
+					ch <- 1
 				}
 			}()
 
@@ -83,10 +83,10 @@ func main() {
 
 			select {
 			case i:= <-ch:
-				if i == 1 &&
-						(tlen >= 3 && (string(bufCmd[tlen-3:tlen]) ==  "***" ||
-						string(bufCmd[tlen-4:tlen]) ==  "***\n") ||
-						lineContainsTermination(string(bufCmd))) {
+				if i == 1 {
+					if (tlen >= 3 && (string(bufCmd[tlen-3:tlen]) ==  "***")) ||
+					   (tlen >= 4 && (string(bufCmd[tlen-4:tlen]) ==  "***\n")) ||
+						lineContainsTermination(string(bufCmd)) {
 					r, s := executeProgram(string(bufCmd))
 					results := fmt.Sprintf("%s\n", r)
 					conn.Write([]byte(results))
@@ -95,6 +95,7 @@ func main() {
 						log.Printf("Shutting down server")
 						os.Exit(0)
 					}
+				}
 					break O
 				} else if i == -1 {
 					break O
